@@ -25,7 +25,18 @@ Agent:  Najszybciej: 8:22 IC „Zielonogórzanin” do Poznania Gł. (peron 3),
 
 Opóźnienia na żywo: pociągi (dane PKP PLK). Ceny biletów: niedostępne.
 
-## Instalacja
+## Najszybciej: publiczny serwer (bez instalacji)
+
+Adres MCP: **`https://rozklad.compabase.com/mcp`** (Streamable HTTP, bez logowania, limit 60 zapytań/min na IP).
+
+- **Claude (web/desktop):** Ustawienia → Connectors → *Add custom connector* → wklej adres.
+- **ChatGPT:** Settings → Connectors (tryb deweloperski) → dodaj serwer MCP z tym adresem.
+- **Claude Code:** `claude mcp add --transport http rozklad https://rozklad.compabase.com/mcp`
+- **Cursor / VS Code:** `{"mcpServers": {"rozklad": {"url": "https://rozklad.compabase.com/mcp"}}}`
+
+Serwer hostuje [Compabase](https://compabase.com) pro publico bono. Przy intensywnym użyciu albo gdy chcesz komunikację miejską – uruchom lokalnie (niżej).
+
+## Instalacja lokalna
 
 Potrzebujesz Node.js ≥ 20. Zanim paczka trafi na npm, zamiast `rozklad-mcp` w poleceniach poniżej użyj `github:ContentWriterco/rozklad-mcp` (np. `npx -y github:ContentWriterco/rozklad-mcp`). Pierwsze uruchomienie pobiera ~40 MB rozkładów (potem cache i automatyczne odświeżanie co 12 h).
 
