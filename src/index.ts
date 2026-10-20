@@ -28,6 +28,8 @@ Environment:
   ROZKLAD_MIN_TRANSFER default minimum change time in minutes (default 4)
   ROZKLAD_LIVE=0       disable live delays
   ROZKLAD_LOG=debug    verbose logs (stderr)
+  ROZKLAD_RATE_LIMIT   HTTP mode: max requests per minute per IP (default off)
+  ROZKLAD_TRUST_PROXY=1  HTTP mode: take client IP from X-Forwarded-For
 `;
 
 function parseArgs(argv: string[]) {
@@ -59,10 +61,53 @@ async function readBody(req: IncomingMessage): Promise<unknown> {
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
 
+/** Simple per-IP fixed-window rate limiter for public instances. */
+const RATE = Number(process.env.ROZKLAD_RATE_LIMIT ?? 0); // requests per minute per IP, 0 = off
+const TRUST_PROXY = process.env.ROZKLAD_TRUST_PROXY === "1";
+const hits = new Map<string, { n: number; reset: number }>();
+function clientIp(req: IncomingMessage): string {
+  if (TRUST_PROXY) {
+    const xf = req.headers["x-forwarded-for"];
+    const v = Array.isArray(xf) ? xf[0] : xf;
+    if (v) return v.split(",")[0].trim();
+  }
+  return req.socket.remoteAddress ?? "?";
+}
+function rateLimited(req: IncomingMessage): boolean {
+  if (!RATE) return false;
+  const ip = clientIp(req);
+  const now = Date.now();
+  let h = hits.get(ip);
+  if (!h || now > h.reset) {
+    h = { n: 0, reset: now + 60_000 };
+    hits.set(ip, h);
+    if (hits.size > 50_000) for (const [k, v] of hits) if (now > v.reset) hits.delete(k);
+  }
+  return ++h.n > RATE;
+}
+
+const LANDING = `rozklad-mcp ${VERSION} - Polish train & bus timetables for AI agents (MCP).
+MCP endpoint (Streamable HTTP): POST /mcp
+Source, docs, local install: https://github.com/ContentWriterco/rozklad-mcp
+`;
+
 async function startHttp(engine: Engine, port: number, host: string) {
   const httpServer = createHttpServer(async (req, res) => {
+    res.setHeader("access-control-allow-origin", "*");
+    res.setHeader("access-control-allow-headers", "content-type, accept, mcp-protocol-version, mcp-session-id, authorization");
+    res.setHeader("access-control-allow-methods", "POST, GET, OPTIONS");
+    if (req.method === "OPTIONS") {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
     try {
       const url = new URL(req.url ?? "/", "http://x");
+      if (url.pathname === "/") {
+        res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
+        res.end(LANDING);
+        return;
+      }
       if (url.pathname === "/health") {
         res.writeHead(200, { "content-type": "application/json" });
         res.end(JSON.stringify({ ok: true, version: VERSION, loaded: !!engine.net }));
@@ -76,6 +121,11 @@ async function startHttp(engine: Engine, port: number, host: string) {
       if (req.method !== "POST") {
         res.writeHead(405, { allow: "POST" });
         res.end();
+        return;
+      }
+      if (rateLimited(req)) {
+        res.writeHead(429, { "content-type": "application/json", "retry-after": "60" });
+        res.end(JSON.stringify({ jsonrpc: "2.0", error: { code: -32000, message: `Rate limit: ${RATE} requests/minute. Run rozklad-mcp locally for heavier use.` }, id: null }));
         return;
       }
       const body = await readBody(req);
