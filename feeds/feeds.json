@@ -1,0 +1,337 @@
+{
+  "$comment": "Registry of open GTFS feeds for Poland. Add a carrier by opening a PR - see CONTRIBUTING.md. group: trains | regional (PKS and other intercity/suburban buses) | city (urban transit).",
+  "feeds": [
+    {
+      "id": "polish-trains",
+      "name": "Pociągi w Polsce - wszyscy przewoźnicy (PKP Intercity, Polregio, Koleje Mazowieckie, SKM Trójmiasto, Koleje Śląskie, Koleje Dolnośląskie, Koleje Wielkopolskie, SKM Warszawa, ŁKA, Koleje Małopolskie, Arriva, RegioJet, Leo Express)",
+      "group": "trains",
+      "region": "PL",
+      "url": "https://mkuran.pl/gtfs/polish_trains.zip",
+      "homepage": "https://mkuran.pl/gtfs/",
+      "license": "PKP PLK / Koleje Mazowieckie public sector information re-use terms",
+      "attribution": "Dane: PKP Polskie Linie Kolejowe S.A., Koleje Mazowieckie; GTFS: Mikołaj Kuranowski (mkuran.pl)",
+      "realtime": {
+        "type": "mkuran-json",
+        "url": "https://mkuran.pl/gtfs/polish_trains/updates.json",
+        "license": "CC BY 4.0 + PKP PLK re-use terms",
+        "attribution": "Opóźnienia: PKP PLK S.A., Mikołaj Kuranowski"
+      }
+    },
+    {
+      "id": "wkd",
+      "name": "Warszawska Kolej Dojazdowa (WKD)",
+      "group": "trains",
+      "region": "mazowieckie",
+      "url": "https://mkuran.pl/gtfs/wkd.zip",
+      "homepage": "https://mkuran.pl/gtfs/",
+      "license": "CC0 1.0",
+      "attribution": "GTFS: Mikołaj Kuranowski (mkuran.pl)"
+    },
+    {
+      "id": "pks-poznan",
+      "name": "PKS Poznań S.A.",
+      "group": "regional",
+      "region": "wielkopolskie",
+      "url": "https://pksonline.pl/download/pkspoznan.zip",
+      "homepage": "https://pksonline.pl/",
+      "license": "Public sector information (KPD MMTIS)",
+      "attribution": "Dane: PKS Poznań S.A."
+    },
+    {
+      "id": "kalisz-regional",
+      "name": "Przewoźnicy regionalni w rejonie Kalisza (m.in. PKS Kalisz, Polturist)",
+      "group": "regional",
+      "region": "wielkopolskie",
+      "url": "http://89.231.35.188:82/?download=gtfs_przewoznicy",
+      "fallbackUrls": [
+        "http://rj.sdip.kalisz.pl/?download=gtfs_przewoznicy"
+      ],
+      "homepage": "http://rj.sdip.kalisz.pl/",
+      "license": "Public sector information (KPD MMTIS)",
+      "attribution": "Dane: Miasto Kalisz, Wydział Komunikacji"
+    },
+    {
+      "id": "pks-kalisz",
+      "name": "PKS w Kaliszu Sp. z o.o.",
+      "group": "regional",
+      "region": "wielkopolskie",
+      "discover": {
+        "page": "https://pks.kalisz.pl/GTFS/",
+        "pattern": "https://pks\\.kalisz\\.pl/wp-content/uploads/[^\"']+\\.zip",
+        "pick": "first"
+      },
+      "homepage": "https://pks.kalisz.pl/GTFS/",
+      "license": "Public sector information (KPD MMTIS)",
+      "attribution": "Dane: PKS w Kaliszu Sp. z o.o."
+    },
+    {
+      "id": "sindbad",
+      "name": "Sindbad (połączenia dalekobieżne)",
+      "group": "regional",
+      "region": "PL",
+      "url": "https://install.voyager.pl/BusApiSupport/SindbadGTFS.zip",
+      "homepage": "https://www.sindbad.pl",
+      "license": "Public sector information (KPD MMTIS)",
+      "attribution": "Dane: Sindbad Sp. z o.o., Voyager.com"
+    },
+    {
+      "id": "kombus",
+      "name": "Kórnickie Przedsiębiorstwo Autobusowe KOMBUS",
+      "group": "regional",
+      "region": "wielkopolskie",
+      "url": "https://kombus.pl/gtfs/kombus.zip",
+      "homepage": "https://www.kombus.pl/deweloperzy/specyfikacja-i-gtfs/",
+      "license": "Public sector information (KPD MMTIS)",
+      "attribution": "Dane: KPA KOMBUS"
+    },
+    {
+      "id": "warszawa",
+      "name": "Warszawski Transport Publiczny (ZTM Warszawa)",
+      "group": "city",
+      "city": "Warszawa",
+      "region": "mazowieckie",
+      "url": "https://mkuran.pl/gtfs/warsaw.zip",
+      "homepage": "https://mkuran.pl/gtfs/",
+      "license": "ZTM Warszawa data usage terms; ODbL for shapes",
+      "attribution": "Dane: ZTM Warszawa; GTFS: Mikołaj Kuranowski; OpenStreetMap contributors"
+    },
+    {
+      "id": "krakow-bus",
+      "name": "Kraków - autobusy (ZTP Kraków)",
+      "group": "city",
+      "city": "Kraków",
+      "region": "małopolskie",
+      "url": "https://gtfs.ztp.krakow.pl/GTFS_KRK_A.zip",
+      "homepage": "https://gtfs.ztp.krakow.pl/",
+      "license": "Public sector information",
+      "attribution": "Dane: Zarząd Transportu Publicznego w Krakowie"
+    },
+    {
+      "id": "krakow-tram",
+      "name": "Kraków - tramwaje (ZTP Kraków)",
+      "group": "city",
+      "city": "Kraków",
+      "region": "małopolskie",
+      "url": "https://gtfs.ztp.krakow.pl/GTFS_KRK_T.zip",
+      "homepage": "https://gtfs.ztp.krakow.pl/",
+      "license": "Public sector information",
+      "attribution": "Dane: Zarząd Transportu Publicznego w Krakowie"
+    },
+    {
+      "id": "poznan",
+      "name": "Poznań (ZTM Poznań)",
+      "group": "city",
+      "city": "Poznań",
+      "region": "wielkopolskie",
+      "discover": {
+        "page": "https://www.ztm.poznan.pl/otwarte-dane/gtfsfiles/",
+        "pattern": "https://www\\.ztm\\.poznan\\.pl/pl/dla-deweloperow/getGTFSFile/\\?file=(?<from>\\d{8})_(?<to>\\d{8})\\.zip",
+        "pick": "covering"
+      },
+      "homepage": "https://www.ztm.poznan.pl/otwarte-dane/gtfsfiles/",
+      "license": "Public sector information",
+      "attribution": "Dane: Zarząd Transportu Miejskiego w Poznaniu"
+    },
+    {
+      "id": "gdansk",
+      "name": "Gdańsk (ZTM Gdańsk)",
+      "group": "city",
+      "city": "Gdańsk",
+      "region": "pomorskie",
+      "url": "https://ckan.multimediagdansk.pl/dataset/c24aa637-3619-4dc2-a171-a23eec8f2172/resource/30e783e4-2bec-4a7d-bb22-ee3e3b26ca96/download/gtfsgoogle.zip",
+      "homepage": "https://ckan.multimediagdansk.pl/dataset/tristar",
+      "license": "CC BY 4.0",
+      "attribution": "Dane: ZTM w Gdańsku"
+    },
+    {
+      "id": "gdynia",
+      "name": "Gdynia (ZKM Gdynia)",
+      "group": "city",
+      "city": "Gdynia",
+      "region": "pomorskie",
+      "url": "https://api.zdiz.gdynia.pl/pt/gdynia-gtfs.zip",
+      "homepage": "https://www.otwartedane.gdynia.pl/",
+      "license": "Public sector information",
+      "attribution": "Dane: ZDiZ / ZKM w Gdyni"
+    },
+    {
+      "id": "gzm",
+      "name": "Górnośląsko-Zagłębiowska Metropolia (ZTM)",
+      "group": "city",
+      "city": "Katowice",
+      "region": "śląskie",
+      "url": "https://mkuran.pl/gtfs/gzm.zip",
+      "homepage": "https://otwartedane.metropoliagzm.pl/",
+      "license": "CC BY 4.0",
+      "attribution": "Dane: Zarząd Transportu Metropolitalnego; GTFS: Mikołaj Kuranowski"
+    },
+    {
+      "id": "szczecin",
+      "name": "Szczecin (ZDiTM)",
+      "group": "city",
+      "city": "Szczecin",
+      "region": "zachodniopomorskie",
+      "url": "https://www.zditm.szczecin.pl/storage/gtfs/gtfs.zip",
+      "homepage": "https://www.zditm.szczecin.pl/pl/zditm/dla-programistow/gtfs",
+      "license": "Public sector information",
+      "attribution": "Dane: ZDiTM Szczecin"
+    },
+    {
+      "id": "bialystok",
+      "name": "Białystok (BKM)",
+      "group": "city",
+      "city": "Białystok",
+      "region": "podlaskie",
+      "url": "https://komunikacja.bialystok.pl/cms/File/download/gtfs/google_transit.zip",
+      "homepage": "https://komunikacja.bialystok.pl/",
+      "license": "Public sector information",
+      "attribution": "Dane: Białostocka Komunikacja Miejska"
+    },
+    {
+      "id": "bydgoszcz",
+      "name": "Bydgoszcz (ZDMiKP)",
+      "group": "city",
+      "city": "Bydgoszcz",
+      "region": "kujawsko-pomorskie",
+      "url": "https://mkuran.pl/gtfs/bydgoszcz.zip",
+      "homepage": "https://mkuran.pl/gtfs/",
+      "license": "CC0 1.0",
+      "attribution": "GTFS: Mikołaj Kuranowski"
+    },
+    {
+      "id": "lublin",
+      "name": "Lublin (ZTM Lublin)",
+      "group": "city",
+      "city": "Lublin",
+      "region": "lubelskie",
+      "url": "https://mkuran.pl/gtfs/lublin.zip",
+      "homepage": "https://mkuran.pl/gtfs/",
+      "license": "CC0 1.0",
+      "attribution": "GTFS: Mikołaj Kuranowski"
+    },
+    {
+      "id": "rzeszow",
+      "name": "Rzeszów (ZTM Rzeszów)",
+      "group": "city",
+      "city": "Rzeszów",
+      "region": "podkarpackie",
+      "url": "https://mkuran.pl/gtfs/rzeszow.zip",
+      "homepage": "https://otwartedane.erzeszow.pl/dataset/rozklad-jazdy-transxchange",
+      "license": "Rzeszów public sector information re-use terms (attribution required, data processed)",
+      "attribution": "Źródło: ZTM Rzeszów (dane przetworzone); GTFS: Mikołaj Kuranowski. Gmina Miasto Rzeszów nie ponosi odpowiedzialności za przetworzone dane."
+    },
+    {
+      "id": "kielce",
+      "name": "Kielce (ZTM Kielce)",
+      "group": "city",
+      "city": "Kielce",
+      "region": "świętokrzyskie",
+      "url": "https://mkuran.pl/gtfs/kielce.zip",
+      "homepage": "https://mkuran.pl/gtfs/",
+      "license": "Kielce public sector information re-use terms (attribution required, data processed)",
+      "attribution": "Źródło: Urząd Miasta Kielce - Zarząd Transportu Miejskiego (dane przetworzone; UM Kielce nie odpowiada za ich przetworzenie)"
+    },
+    {
+      "id": "torun",
+      "name": "Toruń (MZK Toruń)",
+      "group": "city",
+      "city": "Toruń",
+      "region": "kujawsko-pomorskie",
+      "url": "https://mkuran.pl/gtfs/torun.zip",
+      "homepage": "https://mkuran.pl/gtfs/",
+      "license": "CC0 1.0",
+      "attribution": "GTFS: Mikołaj Kuranowski"
+    },
+    {
+      "id": "radom",
+      "name": "Radom (MZDiK)",
+      "group": "city",
+      "city": "Radom",
+      "region": "mazowieckie",
+      "url": "https://mkuran.pl/gtfs/radom.zip",
+      "homepage": "https://mkuran.pl/gtfs/",
+      "license": "CC0 1.0",
+      "attribution": "GTFS: Mikołaj Kuranowski"
+    },
+    {
+      "id": "elblag",
+      "name": "Elbląg (ZKM)",
+      "group": "city",
+      "city": "Elbląg",
+      "region": "warmińsko-mazurskie",
+      "url": "https://mkuran.pl/gtfs/elblag.zip",
+      "homepage": "https://mkuran.pl/gtfs/",
+      "license": "CC0 1.0",
+      "attribution": "GTFS: Mikołaj Kuranowski"
+    },
+    {
+      "id": "gorzow",
+      "name": "Gorzów Wielkopolski (MZK)",
+      "group": "city",
+      "city": "Gorzów Wielkopolski",
+      "region": "lubuskie",
+      "url": "https://mkuran.pl/gtfs/gorzow_wlkp.zip",
+      "homepage": "https://mkuran.pl/gtfs/",
+      "license": "CC0 1.0",
+      "attribution": "GTFS: Mikołaj Kuranowski"
+    },
+    {
+      "id": "elk",
+      "name": "Ełk (MZK)",
+      "group": "city",
+      "city": "Ełk",
+      "region": "warmińsko-mazurskie",
+      "url": "https://mkuran.pl/gtfs/elk.zip",
+      "homepage": "https://mkuran.pl/gtfs/",
+      "license": "CC0 1.0",
+      "attribution": "GTFS: Mikołaj Kuranowski"
+    },
+    {
+      "id": "wejherowo",
+      "name": "Wejherowo (MZK)",
+      "group": "city",
+      "city": "Wejherowo",
+      "region": "pomorskie",
+      "url": "https://mkuran.pl/gtfs/wejherowo.zip",
+      "homepage": "https://mkuran.pl/gtfs/",
+      "license": "CC0 1.0",
+      "attribution": "GTFS: Mikołaj Kuranowski"
+    },
+    {
+      "id": "pabianice",
+      "name": "Pabianice (MZK)",
+      "group": "city",
+      "city": "Pabianice",
+      "region": "łódzkie",
+      "url": "https://gtfs.mzkpabianice.pl/GTFS.zip",
+      "homepage": "https://gtfs.mzkpabianice.pl/",
+      "license": "Public sector information (KPD MMTIS)",
+      "attribution": "Dane: MZK Pabianice"
+    },
+    {
+      "id": "swinoujscie",
+      "name": "Świnoujście (Komunikacja Autobusowa)",
+      "group": "city",
+      "city": "Świnoujście",
+      "region": "zachodniopomorskie",
+      "url": "http://ka.swinoujscie.pl/images/GTFS/GTFS.zip",
+      "homepage": "https://rozklady.ka.swinoujscie.pl/",
+      "license": "Public sector information (KPD MMTIS)",
+      "attribution": "Dane: Komunikacja Autobusowa Sp. z o.o. w Świnoujściu"
+    },
+    {
+      "id": "kalisz",
+      "name": "Kalisz (Kaliskie Linie Autobusowe)",
+      "group": "city",
+      "city": "Kalisz",
+      "region": "wielkopolskie",
+      "url": "http://89.231.35.188:82/?download=gtfs_kla",
+      "fallbackUrls": [
+        "http://rj.sdip.kalisz.pl/?download=gtfs_kla"
+      ],
+      "homepage": "http://rj.sdip.kalisz.pl/",
+      "license": "Public sector information (KPD MMTIS)",
+      "attribution": "Dane: Miasto Kalisz, Wydział Komunikacji"
+    }
+  ]
+}

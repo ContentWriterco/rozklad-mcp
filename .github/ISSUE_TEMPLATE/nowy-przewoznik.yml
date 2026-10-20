@@ -1,0 +1,21 @@
+name: "🚌 Dodaj przewoźnika / miasto"
+description: Brakuje PKS-u, busów albo komunikacji miejskiej? Zgłoś źródło danych.
+labels: ["new-feed", "good first issue"]
+body:
+  - type: input
+    id: carrier
+    attributes:
+      label: Przewoźnik / miasto
+      placeholder: "np. PKS Nowy Sącz, MPK Łódź"
+    validations:
+      required: true
+  - type: input
+    id: link
+    attributes:
+      label: Link do danych GTFS (jeśli znasz)
+      placeholder: "https://…/gtfs.zip albo strona z linkiem"
+  - type: textarea
+    id: notes
+    attributes:
+      label: Dodatkowe informacje
+      description: Licencja, czy link się zmienia, z kim się kontaktować…

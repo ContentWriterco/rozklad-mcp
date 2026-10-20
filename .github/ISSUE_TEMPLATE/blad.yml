@@ -1,0 +1,20 @@
+name: "🐞 Błąd"
+description: Coś działa źle (zła odpowiedź, wyjątek, instalacja)
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: Co się stało?
+      description: Wklej zapytanie (narzędzie + argumenty) i odpowiedź. Przy rozkładzie podaj `ref` kursu.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Czego oczekiwałeś/aś?
+  - type: input
+    id: env
+    attributes:
+      label: Klient MCP, system, wersja Node
+      placeholder: "Claude Desktop, macOS 15, Node 22"
