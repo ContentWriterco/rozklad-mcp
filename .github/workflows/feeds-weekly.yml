@@ -1,0 +1,34 @@
+name: Weekly feed check
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+permissions:
+  issues: write
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - id: check
+        run: node scripts/check-feeds.mjs | tee feed-check.txt
+        continue-on-error: true
+      - name: Open an issue when a feed is broken
+        if: steps.check.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = "Automatyczny test źródeł danych wykrył problem (link nie działa lub plik nie jest GTFS):\n\n```\n" + fs.readFileSync('feed-check.txt','utf8') + "\n```\nPomóż znaleźć nowy link i popraw `feeds/feeds.json` 🙏";
+            const title = "Źródło danych nie działa (test tygodniowy)";
+            const open = await github.rest.issues.listForRepo({ ...context.repo, state: 'open', labels: 'feed-broken' });
+            if (open.data.length) {
+              await github.rest.issues.createComment({ ...context.repo, issue_number: open.data[0].number, body });
+            } else {
+              await github.rest.issues.create({ ...context.repo, title, body, labels: ['feed-broken', 'help wanted'] });
+            }
