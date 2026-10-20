@@ -24,7 +24,8 @@
     "test": "npm run build && node --test test/unit.test.mjs test/engine.test.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "check-feeds": "node scripts/check-feeds.mjs",
-    "prepublishOnly": "npm test"
+    "prepublishOnly": "npm test",
+    "prepare": "npm run build"
   },
   "keywords": [
     "mcp",

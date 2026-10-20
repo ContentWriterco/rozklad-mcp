@@ -27,7 +27,7 @@ Opóźnienia na żywo: pociągi (dane PKP PLK). Ceny biletów: niedostępne.
 
 ## Instalacja
 
-Potrzebujesz Node.js ≥ 20. Pierwsze uruchomienie pobiera ~40 MB rozkładów (potem cache i automatyczne odświeżanie co 12 h).
+Potrzebujesz Node.js ≥ 20. Zanim paczka trafi na npm, zamiast `rozklad-mcp` w poleceniach poniżej użyj `github:ContentWriterco/rozklad-mcp` (np. `npx -y github:ContentWriterco/rozklad-mcp`). Pierwsze uruchomienie pobiera ~40 MB rozkładów (potem cache i automatyczne odświeżanie co 12 h).
 
 ### Claude Desktop
 
