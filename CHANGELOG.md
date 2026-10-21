@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2 – 2026-10-21
+
+- Strona główna serwera HTTP (`/` w przeglądarce): opis, adres MCP do skopiowania, instrukcje podłączenia, demo, dane strukturalne i podgląd linku (Open Graph). `ROZKLAD_PUBLIC_URL` ustawia adres publiczny.
+
 ## 0.3.1 – 2026-10-21
 
 - `plan_journey`: link „exact price & tickets” do Koleo dla części kolejowej każdego połączenia (aktualna cena z promocjami, zakup biletu). Bez pobierania cen ze sklepów.

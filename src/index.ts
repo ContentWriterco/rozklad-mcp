@@ -4,6 +4,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { Engine, UserError } from "./engine.js";
 import { createServer } from "./server.js";
 import { usage } from "./usage.js";
+import { landingHtml } from "./landing.js";
 import { config, log } from "./config.js";
 import { VERSION } from "./version.js";
 
@@ -108,8 +109,16 @@ async function startHttp(engine: Engine, port: number, host: string) {
     try {
       const url = new URL(req.url ?? "/", "http://x");
       if (url.pathname === "/") {
-        res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
-        res.end(LANDING);
+        const accept = String(req.headers.accept ?? "");
+        if (accept.includes("text/html")) {
+          const proto = TRUST_PROXY ? String(req.headers["x-forwarded-proto"] ?? "https").split(",")[0] : "http";
+          const base = process.env.ROZKLAD_PUBLIC_URL ?? `${proto}://${req.headers.host ?? "localhost"}`;
+          res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "max-age=600" });
+          res.end(landingHtml(base.replace(/\/$/, ""), usage.enabled));
+        } else {
+          res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
+          res.end(LANDING);
+        }
         return;
       }
       if (url.pathname === "/stats" && usage.enabled) {
