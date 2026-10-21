@@ -17,9 +17,15 @@ export interface FeedDef {
   homepage?: string;
   license?: string;
   attribution?: string;
-  realtime?: { type: "mkuran-json"; url: string; license?: string; attribution?: string };
+  realtime?:
+    | { type: "mkuran-json"; url: string; license?: string; attribution?: string }
+    | { type: "gtfs-rt"; url: string; urls?: string[]; license?: string; attribution?: string };
   /** Agencies whose trips need distance along the track (km-based fares), computed from shapes.txt. */
   distanceAgencies?: string[];
+  /** City feeds: stop names lack the city ("Rondo Mogilskie"); prefix it for search. Default true for group "city". */
+  cityPrefix?: boolean;
+  /** Keep only trips that stop at least once inside [minLat, minLon, maxLat, maxLon] (e.g. Poland for pan-European feeds). */
+  tripsWithin?: [number, number, number, number];
 }
 
 export interface FeedMeta {

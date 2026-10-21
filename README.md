@@ -1,6 +1,6 @@
 # rozkład-mcp 🚆🚌
 
-**Polskie rozkłady jazdy dla Twojego agenta AI.** Serwer [MCP](https://modelcontextprotocol.io) z rozkładami wszystkich pociągów w Polsce, autobusów PKS i (opcjonalnie) komunikacji miejskiej – z wyszukiwaniem połączeń z przesiadkami, tablicą odjazdów i opóźnieniami na żywo.
+**Polskie rozkłady jazdy dla Twojego agenta AI.** Serwer [MCP](https://modelcontextprotocol.io) z rozkładami wszystkich pociągów w Polsce, autobusów PKS i FlixBusa oraz komunikacji miejskiej ~25 miast – z wyszukiwaniem połączeń z przesiadkami, tablicą odjazdów, opóźnieniami na żywo i cenami z cenników przewoźników.
 
 Działa z Claude, ChatGPT, Cursorem, VS Code, Codexem i każdym klientem MCP. **Bez klucza API, bez rejestracji, za darmo** – tylko otwarte dane.
 
@@ -19,13 +19,14 @@ Agent:  Najszybciej: 8:22 IC „Zielonogórzanin” do Poznania Gł. (peron 3),
 | `departures` | Tablica odjazdów/przyjazdów z peronami i opóźnieniami; filtr „tylko w kierunku Poznania”. |
 | `trip_details` | Cały przebieg pociągu (po numerze: `3510`, `IC 3510`, nazwie: `Podhalanin` albo `ref`) z opóźnieniem na każdej stacji, odwołaniami i objazdami. |
 | `find_stops` / `nearby_stops` | Wyszukiwanie stacji (literówki i brak polskich znaków OK) oraz przystanków w pobliżu punktu. |
+| `rail_disruptions` | Utrudnienia na kolei z PKP PLK: zamknięcia torów, komunikacja zastępcza (ZKA), odwołania (wymaga klucza API PLK na serwerze). |
 | `data_sources` | Jakie dane są załadowane, do kiedy ważne, licencje i wymagane atrybucje. |
 
-**Pokrycie (domyślnie):** wszyscy przewoźnicy kolejowi koordynowani przez PKP PLK – PKP Intercity, Polregio, Koleje Mazowieckie, SKM Trójmiasto, SKM Warszawa, Koleje Śląskie, Dolnośląskie, Wielkopolskie, Małopolskie, ŁKA, Arriva, RegioJet, Leo Express – plus WKD, **PKS Poznań, PKS Kalisz i przewoźnicy kaliscy, Sindbad, Kombus**. Opcjonalnie komunikacja miejska ~20 miast (Warszawa, Kraków, Poznań, Trójmiasto, GZM, Szczecin, Lublin, Białystok…). Pełna lista: [`feeds/feeds.json`](feeds/feeds.json).
+**Pokrycie (domyślnie):** wszyscy przewoźnicy kolejowi koordynowani przez PKP PLK – PKP Intercity, Polregio, Koleje Mazowieckie, SKM Trójmiasto, SKM Warszawa, Koleje Śląskie, Dolnośląskie, Wielkopolskie, Małopolskie, ŁKA, Arriva, RegioJet, Leo Express – plus WKD, **PKS Poznań, PKS Kalisz i przewoźnicy kaliscy, Sindbad, Kombus, FlixBus/FlixTrain (połączenia z i do Polski)**. Komunikacja miejska ~25 miast (Warszawa, Kraków, Łódź, Poznań, Trójmiasto, GZM, Szczecin, Lublin, Białystok, Bydgoszcz, Legnica…) – na publicznym serwerze włączona, lokalnie opcjonalna. Przystanki miejskie wyszukasz z nazwą miasta: „Kraków Rondo Mogilskie”, „Warszawa Politechnika”. Pełna lista: [`feeds/feeds.json`](feeds/feeds.json).
 
-Opóźnienia na żywo: pociągi (dane PKP PLK).
+Opóźnienia na żywo: wszystkie pociągi (dane PKP PLK) oraz komunikacja miejska Krakowa, Poznania, Gdańska i Szczecina (GTFS-Realtime). Utrudnienia i komunikacja zastępcza z API PKP PLK, gdy serwer ma klucz (`ROZKLAD_PLK_API_KEY`).
 
-**Ceny:** dla PKP Intercity `plan_journey` podaje cenę z oficjalnego cennika przewoźnika – TLK/IC według odległości po torze (gdy odległość wypada blisko granicy przedziału cennika, podajemy widełki, np. 68–69 zł – przebieg toru w danych różni się od odległości taryfowej o kilka km), EIC/EIP według par stacji. To **cena maksymalna** biletu normalnego (bez ulg i promocji); w sprzedaży często jest niższa (rabaty zależą od pociągu i dnia). Cennik jest informacją publiczną udostępnioną przez PKP Intercity, wykorzystywaną na podstawie art. 5 ustawy o otwartych danych. Nowa wersja cennika: `npm run build-fares -- <cennik.pdf> <url> <obowiązuje-od>`. Cen innych przewoźników jeszcze nie ma – PR mile widziane.
+**Ceny:** `plan_journey` podaje cenę z oficjalnego cennika przewoźnika dla **PKP Intercity** (TLK/IC według odległości po torze, EIC/EIP według par stacji) oraz **Polregio, Kolei Mazowieckich, Śląskich, Dolnośląskich, Małopolskich, ŁKA i Arrivy** (bilet normalny, 2. klasa, według odległości). Gdy odległość wypada blisko granicy przedziału cennika, podajemy widełki, np. 68–69 zł – przebieg toru w danych różni się od odległości taryfowej o kilka km. To **cena maksymalna** biletu normalnego (bez ulg i promocji); w sprzedaży często jest niższa – rabaty PKP IC, taryfy wojewódzkie (np. Taryfa Pomorska, Małopolska) i oferty przewoźników. Cenniki są informacją publiczną wykorzystywaną na podstawie art. 5 ustawy o otwartych danych. Aktualizacja: `npm run build-fares -- <cennik.pdf> <url> <obowiązuje-od>` (PKP IC) i `python3 scripts/build-regional-fares.py` (przewoźnicy regionalni). Brak cen: komunikacja miejska, autobusy, SKM, Koleje Wielkopolskie (nie znaleźliśmy aktualnego cennika) – PR mile widziane.
 
 ## Najszybciej: publiczny serwer (bez instalacji)
 
@@ -36,7 +37,9 @@ Adres MCP: **`https://rozklad.compabase.com/mcp`** (Streamable HTTP, bez logowan
 - **Claude Code:** `claude mcp add --transport http rozklad https://rozklad.compabase.com/mcp`
 - **Cursor / VS Code:** `{"mcpServers": {"rozklad": {"url": "https://rozklad.compabase.com/mcp"}}}`
 
-Serwer hostuje [Compabase](https://compabase.com) pro publico bono. Przy intensywnym użyciu albo gdy chcesz komunikację miejską – uruchom lokalnie (niżej).
+Serwer hostuje [Compabase](https://compabase.com) pro publico bono, ze wszystkimi feedami (pociągi, PKS, FlixBus, komunikacja miejska). Przy intensywnym użyciu uruchom lokalnie (niżej).
+
+Prywatność: publiczny serwer liczy wyłącznie zagregowane statystyki dzienne – ile razy użyto każdego narzędzia, z jakim skutkiem (np. „nie znaleziono miejsca”), nazwy klientów MCP i liczbę unikalnych użytkowników (sól zmieniana codziennie, trzymana tylko w pamięci). Nie zapisujemy adresów IP, współrzędnych ani tras. Podgląd: [`/stats`](https://rozklad.compabase.com/stats).
 
 ## Instalacja lokalna
 
@@ -122,8 +125,11 @@ Zmienne środowiskowe (w JSON-ie klienta: `"env": { "ROZKLAD_FEEDS": "trains,reg
 | `ROZKLAD_REFRESH_HOURS` | `12` | Jak często sprawdzać nowe rozkłady. |
 | `ROZKLAD_LIVE` | `1` | `0` wyłącza opóźnienia na żywo. |
 | `ROZKLAD_CACHE_DIR` | cache systemu | Gdzie trzymać pobrane rozkłady. |
+| `ROZKLAD_PLK_API_KEY` | – | Klucz [Otwartych Danych Kolejowych PKP PLK](https://pdp-api.plk-sa.pl/) – włącza utrudnienia i komunikację zastępczą. |
+| `ROZKLAD_CONN_CACHE_MB` | `400` | Budżet pamięci na tablice połączeń dla kolejnych dni. |
+| `ROZKLAD_STATS` | – | Tryb HTTP: `1` = anonimowe dzienne liczniki użycia pod `/stats`. |
 
-**Pamięć:** domyślny zestaw (pociągi + PKS) ≈ 400–600 MB RAM i ~3 s startu. Komunikacja miejska dużych miast jest cięższa (Warszawa sama ≈ +600 MB), dlatego włączasz ją świadomie, np. `trains,regional,city:Warszawa`.
+**Pamięć:** domyślny zestaw (pociągi + PKS) ≈ 300–500 MB RAM i ~10 s startu. Komunikacja miejska dużych miast jest cięższa (Warszawa ≈ +250 MB, wszystkie miasta razem ≈ 1,2 GB i ~70 s startu), dlatego lokalnie włączasz ją świadomie, np. `trains,regional,city:Warszawa`.
 
 ## CLI (bez agenta)
 
@@ -155,13 +161,13 @@ To najprostszy i najcenniejszy sposób, żeby pomóc. Większość PKS-ów nie p
 
 Nie programujesz? Otwórz [zgłoszenie „Dodaj przewoźnika”](../../issues/new?template=nowy-przewoznik.yml) z linkiem albo nazwą firmy – albo napisz do przewoźnika, żeby opublikował GTFS w KPD.
 
-**Szukamy pomocy:** Wrocław (blokuje pobieranie automatyczne), Łódź (brak stałego linku), PKS-y w całej Polsce, opóźnienia na żywo dla autobusów (GTFS-Realtime).
+**Szukamy pomocy:** Wrocław (blokuje pobieranie automatyczne), Zielona Góra i Leszno (linki z KPD nie działają), Olsztyn, Częstochowa, PKS-y w całej Polsce, GTFS-Realtime kolejnych miast, aktualny cennik Kolei Wielkopolskich.
 
 ## Jak to działa
 
 - GTFS (pociągi + autobusy + miasta) łączony w jedną sieć w pamięci; przystanki tej samej stacji grupowane, przystanki w promieniu 500 m łączone przejściem pieszym – stąd przesiadki pociąg ↔ PKS na dworcach.
 - Wyszukiwanie: [Connection Scan Algorithm](https://arxiv.org/abs/1703.05997) w wariancie wielokryterialnym (czas przyjazdu × liczba przesiadek) – kilkadziesiąt ms na zapytanie dla całej Polski.
-- Opóźnienia: GTFS-RT/JSON z danymi PKP PLK, cache 90 s.
+- Opóźnienia: JSON z danymi PKP PLK (pociągi) i GTFS-Realtime miast (własny dekoder protobuf, bez zależności), cache 60–90 s.
 - Zero natywnych zależności (działa na macOS/Windows/Linux/ARM), ~3 tys. linii TypeScriptu – łatwo zrozumieć i rozbudować.
 
 ## Rozwój
@@ -173,7 +179,7 @@ npm run check-feeds # czy wszystkie linki w rejestrze działają
 ROZKLAD_LOG=debug node dist/index.js plan "A" "B"
 ```
 
-Pomysły na rozwój: ceny biletów, GTFS-Realtime dla miast (Poznań, Gdańsk, Szczecin publikują), komunikacja zastępcza z komunikatów PLK, mapy tras (shapes), utrwalony indeks dla szybszego startu.
+Pomysły na rozwój: taryfy wojewódzkie (Pomorska, Małopolska, Kujawsko-Pomorska) i ceny biletów miejskich, opóźnienia na żywo w wyszukiwaniu połączeń, mapy tras (shapes), utrwalony indeks dla szybszego startu.
 
 ## Licencja
 
@@ -183,4 +189,4 @@ Kod: [MIT](LICENSE). Dane: na licencjach źródeł – patrz `data_sources` i [`
 
 ## English
 
-**rozklad-mcp** is an MCP server that gives AI agents Polish public transport timetables: every train in Poland (all carriers dispatched by PKP PLK), PKS/regional buses that publish open data, and optionally urban transit in ~20 cities. Tools: `plan_journey` (multi-criteria connection scan with train↔bus transfers, depart-after / arrive-by, coordinates as endpoints), `departures`, `trip_details` (live delays & cancellations), `find_stops`, `nearby_stops`, `data_sources`. No API key: it uses open GTFS data (PKP PLK via mkuran.pl, carriers' own feeds). Install with `npx -y rozklad-mcp` in any MCP client, or run `--http` for a remote Streamable HTTP endpoint. Station names work with or without Polish diacritics; a bare town name means all of its stops. Contributions of new feeds are very welcome – see [CONTRIBUTING.md](CONTRIBUTING.md).
+**rozklad-mcp** is an MCP server that gives AI agents Polish public transport timetables: every train in Poland (all carriers dispatched by PKP PLK), PKS/regional buses that publish open data, FlixBus/FlixTrain services to and from Poland, and urban transit in ~25 cities. Tools: `plan_journey` (multi-criteria connection scan with train↔bus transfers, depart-after / arrive-by, coordinates as endpoints, published price-list fares of PKP Intercity and regional rail carriers), `departures`, `trip_details` (live delays & cancellations for trains and for Kraków, Poznań, Gdańsk, Szczecin city transit), `rail_disruptions` (PKP PLK closures and replacement buses, needs a PLK API key on the server), `find_stops`, `nearby_stops`, `data_sources`. Public endpoint: `https://rozklad.compabase.com/mcp` (anonymous aggregated usage counters only, see `/stats`). No API key: it uses open GTFS data (PKP PLK via mkuran.pl, carriers' own feeds). Install with `npx -y rozklad-mcp` in any MCP client, or run `--http` for a remote Streamable HTTP endpoint. Station names work with or without Polish diacritics; a bare town name means all of its stops. Contributions of new feeds are very welcome – see [CONTRIBUTING.md](CONTRIBUTING.md).

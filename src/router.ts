@@ -6,6 +6,8 @@ const INF = 0x3fffffff;
 const PARETO_SLACK = 2 * 3600;
 /** How far into the next day connections are kept (overnight trips). */
 const NEXT_DAY_HOURS = 14;
+/** Same for buses, trams and other local transport. */
+const NEXT_DAY_LOCAL_HOURS = 6;
 
 /**
  * All connections (consecutive stop pairs of a trip run) for a query day,
@@ -51,9 +53,11 @@ export class DayConnections {
       if ((net.tripRouteOf(t).mode & modeMask) === 0) continue;
       const first = sDep[tStart[t]];
       const last = sArr[tStart[t] + len - 1];
+      // overnight continuation matters for long-distance trains; city/bus runs need only the early hours
+      const hiT = net.tripRouteOf(t).mode === 1 ? hi : DAY + NEXT_DAY_LOCAL_HOURS * 3600;
       for (const off of [-1, 0, 1]) {
         const o = off * DAY;
-        if (last + o < lo || first + o > hi) continue;
+        if (last + o < lo || first + o > hiT) continue;
         if (!net.isActive(t, this.day + off)) continue;
         instTrip.push(t);
         instOffset.push(o);

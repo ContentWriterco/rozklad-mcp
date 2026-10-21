@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0 – 2026-10-21
+
+- **Komunikacja miejska na publicznym serwerze**: mniejsze zużycie pamięci (bufory bez zapasu, współdzielone napisy, budżet pamięci na tablice dni, krótsze okno nocne dla autobusów/tramwajów) – wszystkie feedy mieszczą się w ~1,2 GB. Przystanki miejskie z nazwą miasta („Kraków Rondo Mogilskie”); równie dobre trafienia w różnych miastach („Politechnika”) są zgłaszane jako niejednoznaczne.
+- **Opóźnienia na żywo dla miast** (GTFS-Realtime): Kraków (autobusy, tramwaje), Poznań, Gdańsk, Szczecin. Własny dekoder protobuf, propagacja opóźnienia na kolejne przystanki.
+- **Nowe dane**: FlixBus/FlixTrain (kursy z/do Polski, ODbL), Łódź, Legnica, Włocławek.
+- **Ceny przewoźników regionalnych** z cenników (bilet normalny, 2. klasa, wg km): Polregio (REGIO / interREGIO), Koleje Mazowieckie, Śląskie, Dolnośląskie, Małopolskie, ŁKA (w tym Sprinter), Arriva. Generator `scripts/build-regional-fares.py`. Brak ceny dla odcinków zagranicznych.
+- **Utrudnienia PKP PLK** (`rail_disruptions`, ostrzeżenia w `plan_journey`/`departures`/`trip_details`) – po ustawieniu `ROZKLAD_PLK_API_KEY`.
+- **Anonimowe statystyki** publicznego serwera (`ROZKLAD_STATS=1`, `/stats`): liczniki narzędzi i wyników, klienci MCP, unikalni użytkownicy przez dzienną sól w pamięci; bez IP, współrzędnych i tras.
+- „Kalisz” nie miesza się już z „Kaliszem Pomorskim” (dokładna nazwa wyznacza miasto).
+
 ## 0.2.0 – 2026-10-21
 
 - Ceny z cennika PKP Intercity w `plan_journey`: TLK/IC według odległości po torze (z kształtu trasy GTFS; przy granicy przedziału ±4 km – widełki cen), EIC/EIP według par stacji (z uwzględnieniem „przez”). To cena maksymalna (bazowa) biletu normalnego; w sprzedaży bywa niższa.

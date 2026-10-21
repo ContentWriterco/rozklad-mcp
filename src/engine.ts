@@ -3,10 +3,11 @@ import { config, log } from "./config.js";
 import { ensureFeed, loadRegistry, selectFeeds, readMeta, type FeedDef } from "./feeds.js";
 import { Network, MODE, MODE_NAMES, type Station } from "./network.js";
 import { DayConnections, Router, journeyKey, type Endpoint, type Journey, type RideLeg } from "./router.js";
-import { MkuranLive, type LiveTrip } from "./realtime.js";
+import { MkuranLive, GtfsRtLive, type LiveSource, type LiveTrip } from "./realtime.js";
 import { matchScore, tokens, normalize } from "./text.js";
 import { distM } from "./geo.js";
 import { Fares, type FareQuote } from "./fares.js";
+import { PlkDisruptions, shortMessage, type Disruption } from "./disruptions.js";
 import { duration, hhmm, nowLocal, parseDateInput, parseTimeInput, prettyDate, ymdFromDay } from "./time.js";
 
 const DAY = 86400;
@@ -62,8 +63,9 @@ export class Engine {
   net: Network | null = null;
   private loading: Promise<Network> | null = null;
   private defs: FeedDef[] = [];
-  private live = new Map<string, MkuranLive>();
+  private live = new Map<string, LiveSource>();
   fares = new Fares();
+  disruptions = new PlkDisruptions();
   private dayCache = new Map<string, DayConnections>();
   private router: Router | null = null;
   private refreshTimer: NodeJS.Timeout | null = null;
@@ -71,7 +73,10 @@ export class Engine {
 
   constructor() {
     this.defs = selectFeeds(loadRegistry());
-    for (const d of this.defs) if (d.realtime?.type === "mkuran-json") this.live.set(d.id, new MkuranLive(d.realtime.url));
+    for (const d of this.defs) {
+      if (d.realtime?.type === "mkuran-json") this.live.set(d.id, new MkuranLive(d.realtime.url));
+      else if (d.realtime?.type === "gtfs-rt") this.live.set(d.id, new GtfsRtLive([d.realtime.url, ...(d.realtime.urls ?? [])]));
+    }
   }
 
   get feedDefs() {
@@ -137,6 +142,8 @@ export class Engine {
     const results = await Promise.all(this.defs.map((d) => ensureFeed(d, force).catch(() => ({ changed: false }))));
     const changed = results.some((r) => r.changed);
     if (!changed && this.net && !force) return "Timetables are up to date.";
+    // free cached connection tables first: old and new timetables coexist while rebuilding
+    this.dayCache.clear();
     const net = await this.build(false);
     this.net = net;
     this.router = new Router(net);
@@ -156,7 +163,14 @@ export class Engine {
     dc = new DayConnections(this.net!, day, mask);
     log("debug", `connections for ${ymdFromDay(day)}: ${dc.count} in ${Date.now() - t0} ms`);
     this.dayCache.set(key, dc);
-    while (this.dayCache.size > 4) this.dayCache.delete(this.dayCache.keys().next().value!);
+    // evict least recently used days beyond the memory budget (~25 bytes per connection)
+    let bytes = 0;
+    for (const v of this.dayCache.values()) bytes += v.count * 25;
+    while (this.dayCache.size > 1 && (this.dayCache.size > 6 || bytes > config.connCacheMb * 1e6)) {
+      const oldest = this.dayCache.keys().next().value!;
+      bytes -= this.dayCache.get(oldest)!.count * 25;
+      this.dayCache.delete(oldest);
+    }
     return dc;
   }
 
@@ -247,7 +261,11 @@ export class Engine {
     } else {
       const top = hits[0];
       const second = hits[1];
-      if (!second || top.score - second.score >= 15 || (second.score === top.score && top.station.weight > 5 * second.station.weight)) {
+      // equally good matches in different towns ("Politechnika" in Warszawa, Gdańsk, Kraków...) are ambiguous
+      const elsewhere = hits.some(
+        (h) => h.score === top.score && h.station.norm !== top.station.norm && distM(top.station.lat, top.station.lon, h.station.lat, h.station.lon) > 25000,
+      );
+      if (!elsewhere && (!second || top.score - second.score >= 15 || (second.score === top.score && top.station.weight > 5 * second.station.weight))) {
         chosen = hits.filter((h) => h.station.norm === top.station.norm);
         if (top.score < 70) note = `Interpreted "${input}" as "${top.station.name}".`;
       } else {
@@ -273,9 +291,13 @@ export class Engine {
    */
   private checkSpread(input: string, chosen: StationHit[]): StationHit[] {
     if (chosen.length < 2) return chosen;
-    const anchor = chosen.reduce((a, b) => (b.station.weight > a.station.weight ? b : a));
+    // an exact name match ("Kalisz") anchors the town; "Kalisz Pomorski" 200 km away is another place
+    const exact = chosen.filter((h) => h.score === 100);
+    const pool = exact.length ? exact : chosen;
+    const anchor = pool.reduce((a, b) => (b.station.weight > a.station.weight ? b : a));
     const near = chosen.filter((h) => distM(anchor.station.lat, anchor.station.lon, h.station.lat, h.station.lon) <= 25000);
     if (near.length === chosen.length) return chosen;
+    if (exact.length && exact.every((h) => near.includes(h))) return near;
     const wNear = near.reduce((s, h) => s + h.station.weight, 0);
     const wAll = chosen.reduce((s, h) => s + h.station.weight, 0);
     if (wNear >= 0.9 * wAll) return near;
@@ -306,24 +328,69 @@ export class Engine {
     return lv.get(net.tripId[trip], ymdFromDay(serviceDay), route.agencyId, nums);
   }
 
-  private async refreshLive(days: number[]): Promise<void> {
+  /** Refresh live sources of the feeds of `trips` (only around today) and PLK disruptions. */
+  private async refreshLive(days: number[], trips: Iterable<number>): Promise<void> {
     const today = nowLocal().day;
-    if (!days.some((d) => Math.abs(d - today) <= 1)) return;
-    await Promise.all([...this.live.values()].map((l) => l.refresh()));
+    const net = this.net!;
+    // disruptions are announced days ahead; live delays only matter around today
+    const jobs: Promise<void>[] = [this.disruptions.refresh()];
+    if (days.some((d) => Math.abs(d - today) <= 1)) {
+      const ids = new Set<string>();
+      for (const t of trips) ids.add(net.feeds[net.tripFeed[t]].def.id);
+      for (const id of ids) {
+        const lv = this.live.get(id);
+        if (lv) jobs.push(lv.refresh());
+      }
+    }
+    await Promise.all(jobs);
   }
 
-  /** delay (s) at stop_time g for a trip run, using departure or arrival */
-  private delayAt(lt: LiveTrip | undefined, g: number, which: "arr" | "dep"): { delay?: number; cancelled?: boolean } {
+  /** PKP PLK disruptions (closures, ZKA replacement buses...) affecting a train run. */
+  private disruptionsFor(trip: number, serviceDay: number): Disruption[] {
+    if (!this.disruptions.enabled) return [];
+    const id = this.net!.tripId[trip];
+    if (!id.startsWith("PLK_")) return [];
+    return this.disruptions.forTrip(id, ymdFromDay(serviceDay));
+  }
+
+  /** Live state recorded for stop_time g (by stop_sequence or stop_id). */
+  private liveStop(lt: LiveTrip, g: number) {
+    const net = this.net!;
+    if (lt.byStop?.size) {
+      const sid = net.stopId[net.stStop.a[g]];
+      const hit = lt.byStop.get(sid.slice(sid.indexOf(":") + 1));
+      if (hit) return hit;
+    }
+    return lt.stops.get(net.stSeq.a[g]);
+  }
+
+  /** delay (s) at stop_time g of `trip` for a trip run, using departure or arrival */
+  private delayAt(lt: LiveTrip | undefined, g: number, which: "arr" | "dep", trip: number): { delay?: number; cancelled?: boolean } {
     if (!lt) return {};
     if (lt.cancelled) return { cancelled: true };
     const net = this.net!;
-    const ls = lt.stops.get(net.stSeq.a[g]);
-    if (!ls) return {};
-    if (ls.cancelled) return { cancelled: true };
-    const live = which === "dep" ? ls.dep ?? ls.arr : ls.arr ?? ls.dep;
-    const sched = which === "dep" ? net.stDep.a[g] : net.stArr.a[g];
-    if (live === undefined) return {};
-    return { delay: live - sched };
+    const sched = (k: number, w: "arr" | "dep") => (w === "dep" ? net.stDep.a[k] : net.stArr.a[k]);
+    const delayOf = (ls: ReturnType<Engine["liveStop"]>, k: number, w: "arr" | "dep"): number | undefined => {
+      if (!ls) return undefined;
+      const abs = w === "dep" ? ls.dep ?? ls.arr : ls.arr ?? ls.dep;
+      if (abs !== undefined) return abs - sched(k, w);
+      return w === "dep" ? ls.depDelay ?? ls.arrDelay : ls.arrDelay ?? ls.depDelay;
+    };
+    const ls = this.liveStop(lt, g);
+    if (ls?.cancelled) return { cancelled: true };
+    const d = delayOf(ls, g, which);
+    if (d !== undefined) return { delay: d };
+    // GTFS-RT: a delay applies to the following stops until the next update
+    if (lt.byStop !== undefined || lt.tripDelay !== undefined) {
+      const first = net.tripStart.a[trip];
+      for (let k = g - 1; k >= first; k--) {
+        const prev = this.liveStop(lt, k);
+        const pd = delayOf(prev, k, "dep");
+        if (pd !== undefined) return { delay: pd };
+      }
+      if (lt.tripDelay !== undefined) return { delay: lt.tripDelay };
+    }
+    return {};
   }
 
   // ---- formatting helpers --------------------------------------------------
@@ -381,10 +448,16 @@ export class Engine {
     return net.stopName[net.stStop.a[last]];
   }
 
-  private sourcesFooter(feedIdx: Set<number>, usedLive: boolean): string {
+  private sourcesFooter(feedIdx: Set<number>, usedLive: boolean, usedDisruptions = false): string {
     const net = this.net!;
     const parts = [...feedIdx].map((i) => net.feeds[i].def.attribution ?? net.feeds[i].def.name);
-    if (usedLive) parts.push("live: PKP PLK S.A. via mkuran.pl (CC BY 4.0)");
+    if (usedLive) {
+      for (const i of feedIdx) {
+        const rt = net.feeds[i].def.realtime;
+        if (rt) parts.push(`live: ${rt.attribution ?? net.feeds[i].def.name}`);
+      }
+    }
+    if (usedDisruptions) parts.push("disruptions: PKP PLK S.A. (Otwarte Dane Kolejowe)");
     return `Data: ${[...new Set(parts)].join(" | ")}`;
   }
 
@@ -498,10 +571,11 @@ export class Engine {
     }
 
     const useLive = p.live !== false && config.liveEnabled;
-    if (useLive) await this.refreshLive([day]);
+    if (useLive) await this.refreshLive([day], list.flatMap((j) => j.legs.filter((l): l is RideLeg => l.kind === "ride").map((l) => l.trip)));
     const feedsUsed = new Set<number>();
     let usedLive = false;
-    let priceSource: FareQuote | null = null;
+    const priceSources = new Map<string, FareQuote>();
+    let usedDisruptions = false;
     const lines: string[] = [...header, "Times local (Europe/Warsaw); (+1) = next day.", ""];
     list.forEach((j, idx) => {
       const rides = j.legs.filter((l): l is RideLeg => l.kind === "ride");
@@ -531,8 +605,8 @@ export class Engine {
           const lt = this.liveFor(trip, serviceDay);
           if (lt) {
             usedLive = true;
-            const b = this.delayAt(lt, leg.boardSt, "dep");
-            const a = this.delayAt(lt, leg.alightSt, "arr");
+            const b = this.delayAt(lt, leg.boardSt, "dep", trip);
+            const a = this.delayAt(lt, leg.alightSt, "arr", trip);
             if (b.cancelled || a.cancelled) liveTxt = " · ⚠ CANCELLED (live)";
             else if (b.delay !== undefined || a.delay !== undefined)
               liveTxt = ` · live: dep ${fmtDelay(b.delay) || "?"}, arr ${fmtDelay(a.delay) || "?"}`;
@@ -547,28 +621,36 @@ export class Engine {
         );
         const q = this.priceForRide(trip, leg.boardSt, leg.alightSt);
         if (q) {
-          priceSource = q;
-          lines.push(`     price list (max): ${fmtRange(q.class2, q.class2Max)} 2nd class / ${fmtRange(q.class1, q.class1Max)} 1st class${q.basis.endsWith("km") ? ` · ${q.basis}` : ""} · often cheaper in sale`);
+          priceSources.set(q.carrier, q);
+          const c1 = q.class1 !== undefined ? ` / ${fmtRange(q.class1, q.class1Max)} 1st class` : "";
+          lines.push(`     price list (max): ${fmtRange(q.class2, q.class2Max)} 2nd class${c1}${q.basis.endsWith("km") ? ` · ${q.basis}` : ""} · often cheaper in sale`);
+        }
+        for (const dis of this.disruptionsFor(trip, serviceDay).slice(0, 2)) {
+          usedDisruptions = true;
+          lines.push(`     ⚠ PLK: ${shortMessage(dis)}`);
         }
         lines.push(`     ref: ${this.tripRef(trip, serviceDay)}`);
       }
       if (lastWalk > 0) lines.push(`   walk ${duration(lastWalk)} to destination`);
     });
     lines.push("", "Tickets are not sold here - check the carrier. Use trip_details with a ref for all stops.");
-    if (priceSource) {
-      const ps = priceSource as FareQuote;
+    if (priceSources.size) {
       lines.push(
-        `Prices: ${ps.carrier} published price list valid from ${ps.validFrom} - maximum base price of a full-fare single ticket per train, before discounts and promotions; the price in sale is often lower. Source: ${ps.source}`,
+        `Prices: carriers' published price lists - maximum price of a full-fare single ticket per train, before discounts, regional tariffs and promotions; the price in sale is often lower. Sources: ${[...priceSources.values()]
+          .map((ps) => `${ps.carrier} (valid from ${ps.validFrom}) ${ps.source}`)
+          .join("; ")}`,
       );
     }
-    lines.push(this.sourcesFooter(feedsUsed, usedLive));
+    lines.push(this.sourcesFooter(feedsUsed, usedLive, usedDisruptions));
     return lines.join("\n");
   }
 
-  /** Price-list quote for one ride (currently PKP Intercity), or null. */
+  /** Price-list quote for one ride (PKP Intercity, regional carriers with km tables), or null. */
   priceForRide(trip: number, boardSt: number, alightSt: number): FareQuote | null {
     const net = this.net!;
     if (!this.fares.loaded) return null;
+    // domestic price list only: international legs use other tariffs
+    if (net.stopForeign.has(net.stStop.a[boardSt]) || net.stopForeign.has(net.stStop.a[alightSt])) return null;
     const route = net.tripRouteOf(trip);
     const s0 = net.tripStart.a[trip];
     const dist = net.tripDistKm.get(trip);
@@ -648,9 +730,10 @@ export class Engine {
     rows.push(...uniq);
     const shown = rows.slice(0, limit);
     const useLive = p.live !== false && config.liveEnabled;
-    if (useLive && shown.length) await this.refreshLive([day]);
+    if (useLive && shown.length) await this.refreshLive([day], shown.map((r) => r.trip));
     const feedsUsed = new Set<number>();
     let usedLive = false;
+    let depDisruptions = false;
     const lines = [
       `${p.arrivals ? "Arrivals at" : "Departures from"} ${r.endpoint.label} · ${prettyDate(day)} · ${hhmm(t)}–${hhmm(t + window)}${p.direction ? ` · towards "${p.direction}"` : ""}`,
     ];
@@ -666,9 +749,14 @@ export class Engine {
         const lt = this.liveFor(trip, row.serviceDay);
         if (lt) {
           usedLive = true;
-          const dl = this.delayAt(lt, row.g, p.arrivals ? "arr" : "dep");
+          const dl = this.delayAt(lt, row.g, p.arrivals ? "arr" : "dep", trip);
           liveTxt = dl.cancelled ? " ⚠ CANCELLED" : dl.delay !== undefined ? ` [${fmtDelay(dl.delay)}]` : "";
         }
+      }
+      const dis = useLive ? this.disruptionsFor(trip, row.serviceDay) : [];
+      if (dis.length) {
+        depDisruptions = true;
+        liveTxt += ` ⚠ ${dis[0].type}`;
       }
       let other: string;
       if (p.arrivals) {
@@ -688,7 +776,8 @@ export class Engine {
       );
     }
     if (rows.length > shown.length) lines.push(`… ${rows.length - shown.length} more (raise limit or narrow the window).`);
-    lines.push("", this.sourcesFooter(feedsUsed, usedLive));
+    if (depDisruptions) lines.push("⚠ = PKP PLK reports a disruption for this train (use trip_details with its ref for details).");
+    lines.push("", this.sourcesFooter(feedsUsed, usedLive, depDisruptions));
     return lines.join("\n");
   }
 
@@ -731,10 +820,11 @@ export class Engine {
     } else throw new UserError("Pass either ref or train.");
 
     const useLive = p.live !== false && config.liveEnabled;
-    if (useLive) await this.refreshLive(runs.map((r) => r.serviceDay));
+    if (useLive) await this.refreshLive(runs.map((r) => r.serviceDay), runs.map((r) => r.trip));
     const out: string[] = [];
     const feedsUsed = new Set<number>();
     let usedLive = false;
+    let tripDisruptions = false;
     for (const run of runs.slice(0, 3)) {
       const trip = run.trip;
       feedsUsed.add(net.tripFeed[trip]);
@@ -747,6 +837,10 @@ export class Engine {
           useLive && this.live.has(net.feeds[net.tripFeed[trip]].def.id) && !lt ? " · no live data for this run" : ""
         }`,
       );
+      for (const dis of useLive ? this.disruptionsFor(trip, run.serviceDay) : []) {
+        tripDisruptions = true;
+        out.push(`⚠ PKP PLK: ${shortMessage(dis, 600)}`);
+      }
       const s0 = net.tripStart.a[trip];
       const len = net.tripLen.a[trip];
       for (let k = 0; k < len; k++) {
@@ -756,9 +850,9 @@ export class Engine {
         const times = k === 0 ? `      ${hhmm(dd)}` : k === len - 1 ? `${hhmm(a)}      ` : a === dd ? `      ${hhmm(dd)}` : `${hhmm(a)} ${hhmm(dd)}`;
         let liveTxt = "";
         if (lt) {
-          const dl = this.delayAt(lt, g, k === len - 1 ? "arr" : "dep");
+          const dl = this.delayAt(lt, g, k === len - 1 ? "arr" : "dep", trip);
           if (dl.cancelled) liveTxt = " ⚠ cancelled";
-          else if (dl.delay !== undefined) liveTxt = ` [${fmtDelay(dl.delay)}${lt.stops.get(net.stSeq.a[g])?.confirmed ? ", passed" : ""}]`;
+          else if (dl.delay !== undefined) liveTxt = ` [${fmtDelay(dl.delay)}${this.liveStop(lt, g)?.confirmed ? ", passed" : ""}]`;
         }
         const flags = net.stFlags.a[g];
         const req = flags & 1 && flags & 2 ? " (no stop)" : flags & 1 ? " (alight only)" : flags & 2 ? " (board only)" : "";
@@ -767,7 +861,7 @@ export class Engine {
       out.push(`  ref: ${this.tripRef(trip, run.serviceDay)}`, "");
     }
     if (runs.length > 3) out.push(`(${runs.length - 3} more runs match - be more specific)`);
-    out.push(this.sourcesFooter(feedsUsed, usedLive));
+    out.push(this.sourcesFooter(feedsUsed, usedLive, tripDisruptions));
     return out.join("\n");
   }
 
@@ -800,6 +894,31 @@ export class Engine {
     for (const [id, lv] of this.live) {
       lines.push("", `Live (${id}): ${lv.available ? `updated ${lv.feedTimestamp}` : lv.lastError ? `error: ${lv.lastError}` : "fetched on demand"}`);
     }
+    const dz = this.disruptions;
+    lines.push(
+      "",
+      `Disruptions (PKP PLK Otwarte Dane Kolejowe): ${
+        !dz.enabled ? "off (set ROZKLAD_PLK_API_KEY - free key from https://pdp-api.plk-sa.pl)" : dz.lastError ? `error: ${dz.lastError}` : dz.generatedAt ? `${dz.count} active, updated ${dz.generatedAt}` : "fetched on demand"
+      }`,
+    );
+    return lines.join("\n");
+  }
+
+  /** Current railway disruptions (PKP PLK), optionally filtered by station / text. */
+  async disruptionReport(query?: string, limit = 15): Promise<string> {
+    const dz = this.disruptions;
+    if (!dz.enabled) {
+      return "Railway disruption data (PKP PLK) is not configured on this server. Timetables already include planned replacement buses (ZKA) where carriers publish them.";
+    }
+    await dz.refresh();
+    if (dz.lastError && !dz.count) throw new UserError(`PKP PLK disruption data unavailable right now (${dz.lastError}).`);
+    const hits = dz.search(query);
+    const lines = [`Railway disruptions${query ? ` matching "${query}"` : ""} (today and next 2 days): ${hits.length}`, ""];
+    for (const d of hits.slice(0, limit)) {
+      lines.push(`- ${shortMessage(d, 400)}${d.runs.size ? ` · affects ${d.runs.size} train run(s)` : ""}`);
+    }
+    if (hits.length > limit) lines.push(`… ${hits.length - limit} more - narrow the query (station name).`);
+    lines.push("", `Data: PKP PLK S.A. (Otwarte Dane Kolejowe)${dz.generatedAt ? `, generated ${dz.generatedAt}` : ""}`);
     return lines.join("\n");
   }
 }

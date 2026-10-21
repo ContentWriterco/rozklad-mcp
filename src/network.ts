@@ -51,6 +51,24 @@ export interface FeedInfo {
   loadedAt: number;
 }
 
+/**
+ * Strings sliced from a big CSV chunk keep the whole chunk alive in V8.
+ * `flat` makes an independent copy; `own` also de-duplicates repeated values.
+ */
+function flat(s: string): string {
+  return s ? Buffer.from(s, "utf8").toString("utf8") : "";
+}
+const internPool = new Map<string, string>();
+function own(s: string | undefined): string {
+  if (!s) return "";
+  let v = internPool.get(s);
+  if (v === undefined) {
+    v = flat(s);
+    internPool.set(v, v);
+  }
+  return v;
+}
+
 const FLAG_NO_PICKUP = 1;
 const FLAG_NO_DROPOFF = 2;
 export { FLAG_NO_PICKUP, FLAG_NO_DROPOFF };
@@ -72,6 +90,8 @@ export class Network {
   stopPlatform: (string | undefined)[] = [];
   stopFeed: number[] = [];
   stopStation: number[] = [];
+  /** stops outside Poland (GTFS `country` column, when present) */
+  stopForeign = new Set<number>();
   private lat = new GrowF64();
   private lon = new GrowF64();
   stopLat!: Float64Array;
@@ -153,7 +173,7 @@ export class Network {
     const agencyText = get("agency.txt");
     if (agencyText) {
       parseCsv(agencyText).forEach((r, c) => {
-        agencies.set(r[c("agency_id")] ?? "", r[c("agency_name")] ?? "");
+        agencies.set(own(r[c("agency_id")] ?? ""), own(r[c("agency_name")] ?? ""));
       });
     }
     const firstAgency = agencies.size ? [...agencies.values()][0] : def.name;
@@ -165,12 +185,12 @@ export class Network {
       const agencyId = c("agency_id") >= 0 ? r[c("agency_id")] : "";
       routeIdx.set(id, this.routes.length);
       this.routes.push({
-        id,
-        shortName: (r[c("route_short_name")] ?? "").trim(),
-        longName: (r[c("route_long_name")] ?? "").trim(),
+        id: own(id),
+        shortName: own((r[c("route_short_name")] ?? "").trim()),
+        longName: own((r[c("route_long_name")] ?? "").trim()),
         mode: modeFromRouteType(Number(r[c("route_type")] ?? 3)),
         agency: agencies.get(agencyId) ?? firstAgency,
-        agencyId,
+        agencyId: own(agencyId),
         feed: feedIdx,
       });
     });
@@ -193,12 +213,13 @@ export class Network {
       if (lt !== 0) return;
       const gi = this.stopCount;
       stopIdx.set(id, gi);
-      this.stopId.push(`${def.id}:${id}`);
-      this.stopName.push(name);
+      this.stopId.push(flat(`${def.id}:${id}`));
+      this.stopName.push(own(name));
       const pc = c("platform_code") >= 0 ? r[c("platform_code")] : "";
-      this.stopPlatform.push(pc || undefined);
+      this.stopPlatform.push(pc ? own(pc) : undefined);
       this.stopFeed.push(feedIdx);
       this.stopStation.push(-1);
+      if (c("country") >= 0 && r[c("country")] && r[c("country")] !== "PL") this.stopForeign.add(gi);
       this.lat.push(lat);
       this.lon.push(lon);
       const parent = c("parent_station") >= 0 ? r[c("parent_station")] : "";
@@ -310,17 +331,17 @@ export class Network {
         tripShape.set(this.tripCount, r[c("shape_id")]);
       }
       tripIdx.set(id, this.tripCount);
-      this.tripId.push(id);
+      this.tripId.push(flat(id));
       this.tripRoute.push(ri);
       this.tripService.push(svc(r[c("service_id")]));
       this.tripStart.push(0);
       this.tripLen.push(0);
       const short = (c("trip_short_name") >= 0 ? r[c("trip_short_name")] : "") || "";
       const plkNum = c("plk_train_number") >= 0 ? r[c("plk_train_number")] : "";
-      this.tripShort.push(short);
-      this.tripNumber.push(plkNum || short);
-      this.tripName.push(c("plk_train_name") >= 0 ? r[c("plk_train_name")] || "" : "");
-      this.tripHeadsign.push((c("trip_headsign") >= 0 ? r[c("trip_headsign")] : "") || "");
+      this.tripShort.push(own(short));
+      this.tripNumber.push(own(plkNum || short));
+      this.tripName.push(own(c("plk_train_name") >= 0 ? r[c("plk_train_name")] || "" : ""));
+      this.tripHeadsign.push(own((c("trip_headsign") >= 0 ? r[c("trip_headsign")] : "") || ""));
       this.tripFeed.push(feedIdx);
     });
 
@@ -364,7 +385,7 @@ export class Network {
       tFlags.push(f);
       const plat = cols.plat >= 0 ? r[cols.plat] : "";
       const track = cols.track >= 0 ? r[cols.track] : "";
-      if (plat || track) tPlat.set(n, track ? `${plat || "?"}/${track}` : plat);
+      if (plat || track) tPlat.set(n, own(track ? `${plat || "?"}/${track}` : plat));
     };
     const stream = new CsvStream(onRow);
     // shapes: keep only those needed for distance-based fares
@@ -404,6 +425,9 @@ export class Network {
       }
       if (fname !== "stop_times.txt") return;
       foundStopTimes = true;
+      // pre-size from the uncompressed size (~48 bytes per row) to avoid repeated doubling
+      const est = Math.ceil((file.originalSize ?? 0) / 48);
+      if (est > 0) for (const g of [tTrip, tSeq, tStop, tArr, tDep, tFlags]) g.reserve(est);
       file.ondata = (err, data, final) => {
         if (err) throw err;
         // decode in slices: one huge chunk would exceed V8's max string length
@@ -445,11 +469,23 @@ export class Network {
         order[j + 1] = x;
       }
     }
+    for (const g of [this.stStop, this.stArr, this.stDep, this.stSeq, this.stFlags]) g.reserve(n);
+    const box = def.tripsWithin;
     let stopTimes = 0;
     for (let t = 0; t < nTrips; t++) {
       const a = counts[t];
       const b = counts[t + 1];
       if (b - a < 2) continue;
+      if (box) {
+        let inside = false;
+        for (let k = a; k < b && !inside; k++) {
+          const sg = tStop.a[order[k]];
+          const la = this.lat.a[sg];
+          const lo = this.lon.a[sg];
+          inside = la >= box[0] && la <= box[2] && lo >= box[1] && lo <= box[3];
+        }
+        if (!inside) continue;
+      }
       const ti = firstTrip + t;
       const start = this.stStop.n;
       for (let k = a; k < b; k++) {
@@ -523,6 +559,46 @@ export class Network {
     });
   }
 
+  /**
+   * City transit stops are named without the city ("Rondo Mogilskie"), so
+   * "Kraków Rondo Mogilskie" or a bare "Kraków" would not find them.
+   * Prefix the city unless the name already starts with it or with another
+   * nearby town (multi-town feeds such as GZM: "Gliwice Tężnia").
+   */
+  private prefixCityStations(): void {
+    const towns = new Map<string, [number, number][]>();
+    for (const st of this.stations) {
+      if (!(st.modes & MODE.rail) || !st.tokens.length) continue;
+      const k = st.tokens[0];
+      let a = towns.get(k);
+      if (!a) towns.set(k, (a = []));
+      a.push([st.lat, st.lon]);
+    }
+    for (const st of this.stations) {
+      let city: string | undefined;
+      let ok = st.feeds.size > 0;
+      for (const f of st.feeds) {
+        const def = this.feeds[f].def;
+        if (def.group !== "city" || !def.city || def.cityPrefix === false) ok = false;
+        else city = def.city;
+      }
+      if (!ok || !city) continue;
+      // data quirk: "Sopot Sopot PKP - Marynarzy"
+      if (st.tokens.length > 2 && st.tokens[0] === st.tokens[1]) {
+        st.name = st.name.replace(/^(\S+)\s+/, "");
+        st.tokens = st.tokens.slice(1);
+        st.norm = normalize(st.name);
+      }
+      const cityTok = tokens(city);
+      if (cityTok.every((t, i) => st.tokens[i] === t)) continue;
+      const near = towns.get(st.tokens[0]);
+      if (near && near.some(([la, lo]) => distM(la, lo, st.lat, st.lon) < 15000)) continue;
+      st.name = `${city} ${st.name}`;
+      st.tokens = [...cityTok, ...st.tokens];
+      st.norm = normalize(st.name);
+    }
+  }
+
   private newStation(name: string, lat: number, lon: number, feed: number): number {
     const si = this.stations.length;
     this.stations.push({
@@ -574,6 +650,7 @@ export class Network {
   // ---- finalize ------------------------------------------------------------
 
   finalize(): void {
+    for (const g of [this.tripRoute, this.tripService, this.tripStart, this.tripLen, this.stStop, this.stArr, this.stDep, this.stSeq, this.stFlags]) g.trim();
     this.stopLat = this.lat.done();
     this.stopLon = this.lon.done();
     const tr = this.tripRoute.a;
@@ -598,7 +675,9 @@ export class Network {
         st.lon = this.stopLon[s0];
       }
     }
+    this.prefixCityStations();
     this.buildFootpaths();
+    internPool.clear();
     this.finalized = true;
     log(
       "info",

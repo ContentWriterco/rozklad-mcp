@@ -16,6 +16,17 @@ export class GrowI32 {
   done(): Int32Array {
     return this.a.slice(0, this.n);
   }
+  /** Make room for `extra` more values with a single exact allocation. */
+  reserve(extra: number) {
+    if (this.n + extra <= this.a.length) return;
+    const b = new Int32Array(this.n + extra);
+    b.set(this.a.subarray(0, this.n));
+    this.a = b;
+  }
+  /** Drop unused capacity (doubling can leave up to half of the buffer empty). */
+  trim() {
+    if (this.a.length > this.n) this.a = this.a.slice(0, this.n);
+  }
 }
 
 export class GrowF64 {
@@ -35,6 +46,17 @@ export class GrowF64 {
   done(): Float64Array {
     return this.a.slice(0, this.n);
   }
+  /** Make room for `extra` more values with a single exact allocation. */
+  reserve(extra: number) {
+    if (this.n + extra <= this.a.length) return;
+    const b = new Float64Array(this.n + extra);
+    b.set(this.a.subarray(0, this.n));
+    this.a = b;
+  }
+  /** Drop unused capacity (doubling can leave up to half of the buffer empty). */
+  trim() {
+    if (this.a.length > this.n) this.a = this.a.slice(0, this.n);
+  }
 }
 
 export class GrowU8 {
@@ -53,6 +75,17 @@ export class GrowU8 {
   }
   done(): Uint8Array {
     return this.a.slice(0, this.n);
+  }
+  /** Make room for `extra` more values with a single exact allocation. */
+  reserve(extra: number) {
+    if (this.n + extra <= this.a.length) return;
+    const b = new Uint8Array(this.n + extra);
+    b.set(this.a.subarray(0, this.n));
+    this.a = b;
+  }
+  /** Drop unused capacity (doubling can leave up to half of the buffer empty). */
+  trim() {
+    if (this.a.length > this.n) this.a = this.a.slice(0, this.n);
   }
 }
 

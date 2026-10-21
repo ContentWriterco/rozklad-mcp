@@ -3,6 +3,7 @@ import { z } from "zod";
 import { Engine, UserError } from "./engine.js";
 import { log } from "./config.js";
 import { VERSION } from "./version.js";
+import { usage, classify } from "./usage.js";
 
 const modes = z
   .array(z.enum(["train", "bus", "tram", "metro", "ferry", "all"]))
@@ -18,19 +19,31 @@ const time = z.string().optional().describe('Local time "HH:MM" (Europe/Warsaw).
 
 type Text = { content: { type: "text"; text: string }[]; isError?: boolean };
 
-async function run(fn: () => Promise<string>): Promise<Text> {
+async function run(tool: string, fn: () => Promise<string>): Promise<Text> {
+  const t0 = performance.now();
+  let res: Text;
+  let userErr = false;
   try {
-    return { content: [{ type: "text", text: await fn() }] };
+    res = { content: [{ type: "text", text: await fn() }] };
   } catch (e) {
-    const msg = e instanceof UserError ? e.message : `Internal error: ${(e as Error).message}`;
-    if (!(e instanceof UserError)) log("error", (e as Error).stack);
-    return { content: [{ type: "text", text: msg }], isError: true };
+    userErr = e instanceof UserError;
+    const msg = userErr ? (e as Error).message : `Internal error: ${(e as Error).message}`;
+    if (!userErr) log("error", (e as Error).stack);
+    res = { content: [{ type: "text", text: msg }], isError: true };
   }
+  if (usage.enabled) {
+    const text = res.content[0].text;
+    const outcome = classify(text, !!res.isError, userErr);
+    // which of the inputs matched nothing (only the place name, never coordinates)
+    const nf = outcome === "not_found" ? text.match(/^No stop or station matches "(.*)"\./)?.[1] : undefined;
+    void usage.tool(tool, outcome, performance.now() - t0, nf);
+  }
+  return res;
 }
 
 export const INSTRUCTIONS = `Polish public transport timetables (open data): all trains in Poland (PKP Intercity, Polregio, Koleje Mazowieckie, SKM, Koleje Śląskie/Dolnośląskie/Wielkopolskie/Małopolskie, ŁKA, Arriva, RegioJet, Leo Express, WKD), PKS / regional buses where carriers publish data, and optionally city transit.
 Typical flow: plan_journey(from, to, date, time) answers most questions directly - station and town names are matched fuzzily (with or without Polish letters). Use departures for "what leaves X now", trip_details for a specific train (number like 3510 or a ref) incl. live delays, find_stops/nearby_stops when a place is unclear (you can pass "lat,lon" as from/to).
-Times are local Europe/Warsaw. Live delays cover trains only. For PKP Intercity trains plan_journey shows the published price-list price: it is the MAXIMUM full-fare price, the actual price in sale is often lower (discounts, promotions) - say so when quoting it. Other carriers' prices are not available yet. Mention that data comes from the listed sources when relevant.`;
+Times are local Europe/Warsaw. Live delays: all trains, plus city transit where the city publishes GTFS-Realtime (Kraków, Poznań, Gdańsk, Szczecin) - when no live data is shown, times are scheduled. For PKP Intercity and most regional carriers (Polregio, Koleje Mazowieckie/Śląskie/Dolnośląskie/Małopolskie, ŁKA, Arriva) plan_journey shows the published price-list price: it is the MAXIMUM full-fare price, the actual price is often lower (regional tariffs, discounts, promotions) - say so when quoting it. No prices for city transit, buses, SKM, Koleje Wielkopolskie. Mention that data comes from the listed sources when relevant.`;
 
 export function createServer(engine: Engine): McpServer {
   const server = new McpServer({ name: "rozklad-mcp", version: VERSION }, { instructions: INSTRUCTIONS });
@@ -59,7 +72,7 @@ export function createServer(engine: Engine): McpServer {
       annotations: ro,
     },
     async (a) =>
-      run(() =>
+      run("plan_journey", () =>
         engine.plan({
           from: a.from,
           to: a.to,
@@ -96,7 +109,7 @@ export function createServer(engine: Engine): McpServer {
       annotations: ro,
     },
     async (a) =>
-      run(() =>
+      run("departures", () =>
         engine.departures({
           station: a.station,
           date: a.date,
@@ -126,7 +139,7 @@ export function createServer(engine: Engine): McpServer {
       },
       annotations: ro,
     },
-    async (a) => run(() => engine.tripDetails(a)),
+    async (a) => run("trip_details", () => engine.tripDetails(a)),
   );
 
   server.registerTool(
@@ -141,7 +154,7 @@ export function createServer(engine: Engine): McpServer {
       },
       annotations: ro,
     },
-    async (a) => run(() => engine.findStops(a.query, a.limit, a.modes)),
+    async (a) => run("find_stops", () => engine.findStops(a.query, a.limit, a.modes)),
   );
 
   server.registerTool(
@@ -157,7 +170,7 @@ export function createServer(engine: Engine): McpServer {
       },
       annotations: ro,
     },
-    async (a) => run(() => engine.nearbyStops(a.lat, a.lon, a.radius_m, a.modes)),
+    async (a) => run("nearby_stops", () => engine.nearbyStops(a.lat, a.lon, a.radius_m, a.modes)),
   );
 
   server.registerTool(
@@ -168,7 +181,23 @@ export function createServer(engine: Engine): McpServer {
       inputSchema: {},
       annotations: ro,
     },
-    async () => run(() => engine.sources()),
+    async () => run("data_sources", () => engine.sources()),
+  );
+
+  server.registerTool(
+    "rail_disruptions",
+    {
+      title: "Railway disruptions (PKP PLK)",
+      description:
+        "Current and upcoming disruptions on Polish railway lines from PKP PLK: track closures, replacement buses (ZKA), cancellations, diversions. " +
+        "Optional `query` filters by station name or text (e.g. \"Kraków\", \"ZKA\"). plan_journey, departures and trip_details already flag affected trains.",
+      inputSchema: {
+        query: z.string().optional().describe("Station name or text to filter by"),
+        limit: z.number().int().min(1).max(50).optional().describe("Max results (default 15)"),
+      },
+      annotations: ro,
+    },
+    async (a) => run("rail_disruptions", () => engine.disruptionReport(a.query, a.limit)),
   );
 
   server.registerPrompt(

@@ -3,6 +3,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { Engine, UserError } from "./engine.js";
 import { createServer } from "./server.js";
+import { usage } from "./usage.js";
 import { config, log } from "./config.js";
 import { VERSION } from "./version.js";
 
@@ -29,6 +30,9 @@ Environment:
   ROZKLAD_LIVE=0       disable live delays
   ROZKLAD_LOG=debug    verbose logs (stderr)
   ROZKLAD_RATE_LIMIT   HTTP mode: max requests per minute per IP (default off)
+  ROZKLAD_STATS        HTTP mode: 1 = anonymous daily usage counters, served at /stats
+  ROZKLAD_PLK_API_KEY  key for PKP PLK Otwarte Dane Kolejowe (disruptions, replacement buses)
+  ROZKLAD_CONN_CACHE_MB  memory budget for per-day connection tables (default 400)
   ROZKLAD_TRUST_PROXY=1  HTTP mode: take client IP from X-Forwarded-For
 `;
 
@@ -108,6 +112,11 @@ async function startHttp(engine: Engine, port: number, host: string) {
         res.end(LANDING);
         return;
       }
+      if (url.pathname === "/stats" && usage.enabled) {
+        res.writeHead(200, { "content-type": "application/json; charset=utf-8", "cache-control": "max-age=300" });
+        res.end(JSON.stringify(await usage.summary(), null, 1));
+        return;
+      }
       if (url.pathname === "/health") {
         res.writeHead(200, { "content-type": "application/json" });
         res.end(JSON.stringify({ ok: true, version: VERSION, loaded: !!engine.net }));
@@ -124,11 +133,17 @@ async function startHttp(engine: Engine, port: number, host: string) {
         return;
       }
       if (rateLimited(req)) {
+        void usage.request(clientIp(req), undefined, true);
         res.writeHead(429, { "content-type": "application/json", "retry-after": "60" });
         res.end(JSON.stringify({ jsonrpc: "2.0", error: { code: -32000, message: `Rate limit: ${RATE} requests/minute. Run rozklad-mcp locally for heavier use.` }, id: null }));
         return;
       }
       const body = await readBody(req);
+      if (usage.enabled) {
+        const msgs = (Array.isArray(body) ? body : [body]) as { method?: string; params?: { clientInfo?: { name?: string } } }[];
+        const init = msgs.find((m) => m?.method === "initialize");
+        void usage.request(clientIp(req), init ? (init.params?.clientInfo?.name ?? "unknown") : undefined);
+      }
       // Stateless: a fresh MCP server per request, sharing the loaded timetable.
       const server = createServer(engine);
       const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
@@ -146,6 +161,7 @@ async function startHttp(engine: Engine, port: number, host: string) {
       }
     }
   });
+  usage.start();
   httpServer.listen(port, host, () => log("info", `HTTP MCP endpoint: http://${host}:${port}/mcp`));
   // warm up in the background so the first request is fast
   engine.ready().catch((e) => log("error", e.message));

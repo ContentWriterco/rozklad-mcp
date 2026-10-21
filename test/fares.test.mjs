@@ -45,3 +45,35 @@ test("fares: station pairs map multi-station cities and pick the matching via ro
   assert.equal(Fares.stationKey("Kraków Płaszów", ["Kraków"]), "krakow");
   assert.equal(Fares.stationKey("Krakówek", ["Kraków"]), "krakowek");
 });
+
+const regFile = join(dir, "regional.json");
+writeFileSync(
+  regFile,
+  JSON.stringify({
+    carriers: [
+      {
+        agency_id: "PR",
+        carrier: "Test Regio",
+        valid_from: "2024-12-15",
+        source: "https://example.org/tpr.pdf",
+        tables: [
+          { name: "IR", categories: ["IR"], rows: [[1, 40, 16.5], [41, 59, 22.3]] },
+          { name: "REGIO", categories: ["*"], rows: [[1, 5, 6.1], [6, 10, 6.7], [11, 15, 7.9]] },
+        ],
+        exclude_stations: ["Lotnisko"],
+      },
+    ],
+  }),
+);
+const fr = new Fares([regFile]);
+
+test("fares: regional km tables by category, ZKA priced like the train, no 1st class", () => {
+  assert.equal(fr.quote("PR", "REG", 8, [])?.class2, 6.7);
+  assert.equal(fr.quote("PR", "REG", 8, [])?.class1, undefined);
+  assert.equal(fr.quote("PR", "ZKA REG", 13, [])?.class2, 7.9);
+  assert.equal(fr.quote("PR", "IR", 13, [])?.class2, 16.5);
+  assert.equal(fr.quote("PR", "K3", 3, ["A", "B"])?.class2, 6.1);
+  assert.equal(fr.quote("PR", "REG", 3, ["Lotnisko Balice", "B"]), null);
+  assert.equal(fr.quote("PR", "REG", 99, []), null);
+  assert.equal(fr.quote("KM", "R1", 8, []), null);
+});

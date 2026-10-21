@@ -14,10 +14,17 @@
         "type": "mkuran-json",
         "url": "https://mkuran.pl/gtfs/polish_trains/updates.json",
         "license": "CC BY 4.0 + PKP PLK re-use terms",
-        "attribution": "Opóźnienia: PKP PLK S.A., Mikołaj Kuranowski"
+        "attribution": "PKP PLK S.A. via mkuran.pl (CC BY 4.0)"
       },
       "distanceAgencies": [
-        "IC"
+        "IC",
+        "PR",
+        "AR",
+        "KD",
+        "KS",
+        "KM",
+        "KML",
+        "LKA"
       ]
     },
     {
@@ -88,6 +95,22 @@
       "attribution": "Dane: KPA KOMBUS"
     },
     {
+      "id": "flixbus",
+      "name": "FlixBus / FlixTrain (połączenia z/do Polski)",
+      "group": "regional",
+      "region": "PL",
+      "url": "https://gtfs.gis.flix.tech/gtfs_generic_eu.zip",
+      "homepage": "https://transport.data.gouv.fr/datasets/flixbus-horaires-theoriques-du-reseau-europeen-1",
+      "license": "ODbL 1.0 (+ transport.data.gouv.fr conditions)",
+      "attribution": "FlixBus/FlixTrain: © Flixbus France – transport.data.gouv.fr, ODbL 1.0",
+      "tripsWithin": [
+        49.0,
+        14.1,
+        54.9,
+        24.2
+      ]
+    },
+    {
       "id": "warszawa",
       "name": "Warszawski Transport Publiczny (ZTM Warszawa)",
       "group": "city",
@@ -107,7 +130,13 @@
       "url": "https://gtfs.ztp.krakow.pl/GTFS_KRK_A.zip",
       "homepage": "https://gtfs.ztp.krakow.pl/",
       "license": "Public sector information",
-      "attribution": "Dane: Zarząd Transportu Publicznego w Krakowie"
+      "attribution": "Dane: Zarząd Transportu Publicznego w Krakowie",
+      "realtime": {
+        "type": "gtfs-rt",
+        "url": "https://gtfs.ztp.krakow.pl/TripUpdates_A.pb",
+        "license": "Public sector information",
+        "attribution": "ZTP Kraków"
+      }
     },
     {
       "id": "krakow-tram",
@@ -118,7 +147,13 @@
       "url": "https://gtfs.ztp.krakow.pl/GTFS_KRK_T.zip",
       "homepage": "https://gtfs.ztp.krakow.pl/",
       "license": "Public sector information",
-      "attribution": "Dane: Zarząd Transportu Publicznego w Krakowie"
+      "attribution": "Dane: Zarząd Transportu Publicznego w Krakowie",
+      "realtime": {
+        "type": "gtfs-rt",
+        "url": "https://gtfs.ztp.krakow.pl/TripUpdates_T.pb",
+        "license": "Public sector information",
+        "attribution": "ZTP Kraków"
+      }
     },
     {
       "id": "poznan",
@@ -133,7 +168,13 @@
       },
       "homepage": "https://www.ztm.poznan.pl/otwarte-dane/gtfsfiles/",
       "license": "Public sector information",
-      "attribution": "Dane: Zarząd Transportu Miejskiego w Poznaniu"
+      "attribution": "Dane: Zarząd Transportu Miejskiego w Poznaniu",
+      "realtime": {
+        "type": "gtfs-rt",
+        "url": "https://www.ztm.poznan.pl/pl/dla-deweloperow/getGtfsRtFile?file=trip_updates.pb",
+        "license": "Public sector information",
+        "attribution": "ZTM Poznań"
+      }
     },
     {
       "id": "gdansk",
@@ -144,7 +185,13 @@
       "url": "https://ckan.multimediagdansk.pl/dataset/c24aa637-3619-4dc2-a171-a23eec8f2172/resource/30e783e4-2bec-4a7d-bb22-ee3e3b26ca96/download/gtfsgoogle.zip",
       "homepage": "https://ckan.multimediagdansk.pl/dataset/tristar",
       "license": "CC BY 4.0",
-      "attribution": "Dane: ZTM w Gdańsku"
+      "attribution": "Dane: ZTM w Gdańsku",
+      "realtime": {
+        "type": "gtfs-rt",
+        "url": "https://ckan2.multimediagdansk.pl/gtfs-rt?feed=tripUpdates",
+        "license": "CC BY 4.0",
+        "attribution": "ZTM w Gdańsku"
+      }
     },
     {
       "id": "gdynia",
@@ -176,8 +223,14 @@
       "region": "zachodniopomorskie",
       "url": "https://www.zditm.szczecin.pl/storage/gtfs/gtfs.zip",
       "homepage": "https://www.zditm.szczecin.pl/pl/zditm/dla-programistow/gtfs",
-      "license": "Public sector information",
-      "attribution": "Dane: ZDiTM Szczecin"
+      "license": "CC0 1.0",
+      "attribution": "Dane: ZDiTM Szczecin",
+      "realtime": {
+        "type": "gtfs-rt",
+        "url": "https://www.zditm.szczecin.pl/storage/gtfs/gtfs-rt-trips.pb",
+        "license": "CC0 1.0",
+        "attribution": "ZDiTM Szczecin"
+      }
     },
     {
       "id": "bialystok",
@@ -335,6 +388,46 @@
       "homepage": "http://rj.sdip.kalisz.pl/",
       "license": "Public sector information (KPD MMTIS)",
       "attribution": "Dane: Miasto Kalisz, Wydział Komunikacji"
+    },
+    {
+      "id": "lodz",
+      "name": "Łódź (ZDiT / MPK Łódź)",
+      "group": "city",
+      "city": "Łódź",
+      "region": "łódzkie",
+      "discover": {
+        "page": "https://otwarte.miasto.lodz.pl/transport_komunikacja/",
+        "pattern": "https://otwarte\\.miasto\\.lodz\\.pl/wp-content/uploads/\\d{4}/\\d{2}/GTFS\\.zip",
+        "pick": "last"
+      },
+      "fallbackUrls": [
+        "https://otwarte.miasto.lodz.pl/wp-content/uploads/2025/06/GTFS.zip"
+      ],
+      "homepage": "https://otwarte.miasto.lodz.pl/transport_komunikacja/",
+      "license": "Public sector information",
+      "attribution": "Dane: Miasto Łódź (otwarte.miasto.lodz.pl)"
+    },
+    {
+      "id": "legnica",
+      "name": "Legnica (MPK Legnica)",
+      "group": "city",
+      "city": "Legnica",
+      "region": "dolnośląskie",
+      "url": "https://gtfs.legnica.eu/static/GTFS.zip",
+      "homepage": "https://opendata.legnica.eu/open-data.php",
+      "license": "CC BY 4.0",
+      "attribution": "Dane: Gmina Legnica"
+    },
+    {
+      "id": "wloclawek",
+      "name": "Włocławek (MZDiZ)",
+      "group": "city",
+      "city": "Włocławek",
+      "region": "kujawsko-pomorskie",
+      "url": "http://mzdiz.pl/gtfs/ITSWloclawek.zip",
+      "homepage": "http://mzdiz.pl/",
+      "license": "Public sector information (KPD MMTIS)",
+      "attribution": "Dane: MZDiZ Włocławek"
     }
   ]
 }

@@ -26,6 +26,8 @@ export const config = {
   cacheDir: process.env.ROZKLAD_CACHE_DIR ?? defaultCacheDir(),
   /** How often the static timetable is re-checked (conditional GET). */
   refreshHours: num("ROZKLAD_REFRESH_HOURS", 12),
+  /** Memory budget for cached per-day connection tables (MB). */
+  connCacheMb: num("ROZKLAD_CONN_CACHE_MB", 400),
   /** Default minimum transfer time in minutes. */
   minTransferMin: num("ROZKLAD_MIN_TRANSFER", 4),
   /** Max walking distance between stops for transfers, metres. */
