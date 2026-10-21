@@ -59,6 +59,7 @@ pre{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:
 <li><b>departures</b> – tablica odjazdów z peronami i opóźnieniami.</li>
 <li><b>trip_details</b> – cały przebieg pociągu lub autobusu z opóźnieniem na każdym przystanku.</li>
 <li><b>rail_disruptions</b> – utrudnienia i komunikacja zastępcza PKP PLK.</li>
+<li><b>weather_warnings</b> – ostrzeżenia IMGW przed burzami, wiatrem, oblodzeniem i powodzią.</li>
 <li><b>find_stops</b>, <b>nearby_stops</b>, <b>data_sources</b>.</li>
 </ul>
 <p>Dane: wszystkie pociągi w Polsce (PKP PLK), PKS-y publikujące otwarte dane, FlixBus oraz komunikacja miejska ~25 miast (Warszawa, Kraków, Łódź, Poznań, Trójmiasto, GZM, Szczecin…). Opóźnienia na żywo: pociągi oraz miasta publikujące GTFS-Realtime.</p>

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.0 – 2026-10-21
+
+- Nowe narzędzie `weather_warnings`: ostrzeżenia meteorologiczne i powodziowe IMGW-PIB dla powiatu danego miejsca (powiat z usługi GUGiK ULDK) albo przegląd dla całej Polski.
+- `plan_journey` dopisuje aktywne ostrzeżenia IMGW dla miejsca startu i celu.
+
 ## 0.3.4 – 2026-10-21
 
 - Utrudnienia PKP PLK: nazwy typów, gdy API podaje tylko kod (np. „utr_55”). Klucz PLK aktywny na publicznym serwerze.

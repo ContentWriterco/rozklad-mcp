@@ -8,6 +8,7 @@ import { matchScore, tokens, normalize } from "./text.js";
 import { distM } from "./geo.js";
 import { Fares, type FareQuote } from "./fares.js";
 import { PlkDisruptions, shortMessage, type Disruption } from "./disruptions.js";
+import { ImgwWarnings, IMGW_ATTRIBUTION, fmtMeteo, type County } from "./warnings.js";
 import { duration, hhmm, nowLocal, parseDateInput, parseTimeInput, prettyDate, ymdFromDay } from "./time.js";
 
 const DAY = 86400;
@@ -77,6 +78,7 @@ export class Engine {
   private live = new Map<string, LiveSource>();
   fares = new Fares();
   disruptions = new PlkDisruptions();
+  warnings = new ImgwWarnings();
   private dayCache = new Map<string, DayConnections>();
   private router: Router | null = null;
   private refreshTimer: NodeJS.Timeout | null = null;
@@ -646,6 +648,11 @@ export class Engine {
       const link = this.ticketLink(rides, day);
       if (link) lines.push(`   exact price & tickets (trains): ${link}`);
     });
+    const wx = await this.warningLines([
+      ["start", net.stStop.a[list[0].legs.filter((l): l is RideLeg => l.kind === "ride")[0].boardSt]],
+      ["destination", [...d.endpoint.stops.keys()][0]],
+    ]);
+    if (wx.length) lines.push("", ...wx);
     lines.push("", "Tickets are not sold here - check the carrier. Use trip_details with a ref for all stops.");
     if (priceSources.size) {
       lines.push(
@@ -934,6 +941,63 @@ export class Engine {
         !dz.enabled ? "off (set ROZKLAD_PLK_API_KEY - free key from https://pdp-api.plk-sa.pl)" : dz.lastError ? `error: ${dz.lastError}` : dz.generatedAt ? `${dz.count} active, updated ${dz.generatedAt}` : "fetched on demand"
       }`,
     );
+    return lines.join("\n");
+  }
+
+  /** IMGW weather warnings for the counties of the given stops (only when any warning is active). */
+  private async warningLines(points: [string, number][]): Promise<string[]> {
+    const w = this.warnings;
+    if (!w.enabled) return [];
+    await w.refresh();
+    if (!w.meteo.length && !w.hydro.length) return [];
+    const net = this.net!;
+    const out: string[] = [];
+    const seen = new Set<string>();
+    for (const [label, stop] of points) {
+      const c = await w.countyAt(net.stopLat[stop], net.stopLon[stop]);
+      if (!c || seen.has(c.teryt)) continue;
+      seen.add(c.teryt);
+      for (const m of w.meteoFor(c).slice(0, 3)) out.push(`⚠ IMGW (${label}, powiat ${c.name}): ${fmtMeteo(m)}`);
+      for (const h of w.hydroFor(c).slice(0, 1)) out.push(`⚠ IMGW (${label}, woj. ${c.voivodeship}): ${h.event} – ${h.level}. stopień`);
+    }
+    if (out.length) out.push(`Weather warnings: ${IMGW_ATTRIBUTION}. Details: weather_warnings.`);
+    return out;
+  }
+
+  /** IMGW weather / flood warnings for a place (station, town or "lat,lon"), or a national overview. */
+  async weatherWarnings(place?: string): Promise<string> {
+    const w = this.warnings;
+    if (!w.enabled) return "Weather warnings are disabled on this server.";
+    await w.refresh();
+    if (w.lastError && !w.fetchedAt) throw new UserError(`IMGW warnings unavailable right now (${w.lastError}).`);
+    const lines: string[] = [];
+    if (place) {
+      await this.ready();
+      const r = this.resolve(place, "station");
+      const st = this.net!.stations[r.stations[0]];
+      const c: County | null = await w.countyAt(st.lat, st.lon);
+      if (!c) throw new UserError(`Could not determine the county (powiat) of "${place}".`);
+      const ms = w.meteoFor(c);
+      const hs = w.hydroFor(c);
+      lines.push(`IMGW warnings for ${st.name} (powiat ${c.name}, woj. ${c.voivodeship}):`, "");
+      if (!ms.length && !hs.length) lines.push("No active weather or flood warnings.");
+      for (const m of ms) lines.push(`- ${fmtMeteo(m)}${m.text ? `: ${m.text.slice(0, 400)}` : ""}`);
+      for (const h of hs) lines.push(`- ${h.event} – ${h.level}. stopień (hydrological, ${h.areas.filter((a) => a.voivodeship.toLowerCase() === c.voivodeship.toLowerCase()).map((a) => a.desc).join("; ").slice(0, 300)})`);
+    } else {
+      lines.push(`Active IMGW warnings in Poland: ${w.meteo.length} meteorological, ${w.hydro.length} flood.`, "");
+      const byEvent = new Map<string, { level: number; counties: number; to?: string }>();
+      for (const m of w.meteo) {
+        const k = `${m.event} – ${m.level}. stopień`;
+        const e = byEvent.get(k) ?? { level: m.level, counties: 0, to: m.to };
+        e.counties += m.counties.size;
+        byEvent.set(k, e);
+      }
+      for (const [k, e] of [...byEvent].sort((a, b) => b[1].level - a[1].level)) lines.push(`- ${k}: ${e.counties} counties${e.to ? `, until ${e.to.slice(0, 16)}` : ""}`);
+      for (const h of w.hydro) lines.push(`- ${h.event} – ${h.level}. stopień: ${[...new Set(h.areas.map((a) => a.voivodeship))].join(", ")}`);
+      if (w.meteo.length + w.hydro.length === 0) lines.push("No active warnings.");
+      lines.push("", "Pass a place (town, station or \"lat,lon\") for the warnings that apply there.");
+    }
+    lines.push("", `Data: ${IMGW_ATTRIBUTION}.`);
     return lines.join("\n");
   }
 

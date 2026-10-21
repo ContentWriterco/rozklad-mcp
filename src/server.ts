@@ -43,7 +43,7 @@ async function run(tool: string, fn: () => Promise<string>): Promise<Text> {
 
 export const INSTRUCTIONS = `Polish public transport timetables (open data): all trains in Poland (PKP Intercity, Polregio, Koleje Mazowieckie, SKM, Koleje Śląskie/Dolnośląskie/Wielkopolskie/Małopolskie, ŁKA, Arriva, RegioJet, Leo Express, WKD), PKS / regional buses where carriers publish data, and optionally city transit.
 Typical flow: plan_journey(from, to, date, time) answers most questions directly - station and town names are matched fuzzily (with or without Polish letters). Use departures for "what leaves X now", trip_details for a specific train (number like 3510 or a ref) incl. live delays, find_stops/nearby_stops when a place is unclear (you can pass "lat,lon" as from/to).
-Times are local Europe/Warsaw. Live delays: all trains, plus city transit where the city publishes GTFS-Realtime (Kraków, Poznań, Gdańsk, Szczecin) - when no live data is shown, times are scheduled. For PKP Intercity and most regional carriers (Polregio, Koleje Mazowieckie/Śląskie/Dolnośląskie/Małopolskie, ŁKA, Arriva) plan_journey shows the published price-list price: it is the MAXIMUM full-fare price, the actual price is often lower (regional tariffs, discounts, promotions) - say so when quoting it. For the exact current train price and tickets, give the user the Koleo link from plan_journey ("exact price & tickets") - or open it yourself if you have a browser tool. No prices for city transit, buses, SKM, Koleje Wielkopolskie. Mention that data comes from the listed sources when relevant.`;
+Times are local Europe/Warsaw. Weather/flood warnings (IMGW) for the start and destination are added to plan_journey automatically; weather_warnings gives details. Live delays: all trains, plus city transit where the city publishes GTFS-Realtime (Kraków, Poznań, Gdańsk, Szczecin) - when no live data is shown, times are scheduled. For PKP Intercity and most regional carriers (Polregio, Koleje Mazowieckie/Śląskie/Dolnośląskie/Małopolskie, ŁKA, Arriva) plan_journey shows the published price-list price: it is the MAXIMUM full-fare price, the actual price is often lower (regional tariffs, discounts, promotions) - say so when quoting it. For the exact current train price and tickets, give the user the Koleo link from plan_journey ("exact price & tickets") - or open it yourself if you have a browser tool. No prices for city transit, buses, SKM, Koleje Wielkopolskie. Mention that data comes from the listed sources when relevant.`;
 
 export function createServer(engine: Engine): McpServer {
   const server = new McpServer({ name: "rozklad-mcp", version: VERSION }, { instructions: INSTRUCTIONS });
@@ -198,6 +198,19 @@ export function createServer(engine: Engine): McpServer {
       annotations: ro,
     },
     async (a) => run("rail_disruptions", () => engine.disruptionReport(a.query, a.limit)),
+  );
+
+  server.registerTool(
+    "weather_warnings",
+    {
+      title: "Weather & flood warnings (IMGW)",
+      description:
+        "Official IMGW-PIB meteorological warnings (storm, wind, frost, heat, snow, ice...) and flood warnings in Poland. " +
+        "With `place` (town, station or \"lat,lon\"): warnings for its county (powiat); without: national overview. plan_journey already adds warnings for the start and destination.",
+      inputSchema: { place: z.string().optional().describe("Town, station or 'lat,lon'") },
+      annotations: ro,
+    },
+    async (a) => run("weather_warnings", () => engine.weatherWarnings(a.place)),
   );
 
   server.registerPrompt(

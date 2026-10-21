@@ -44,6 +44,7 @@ Wszystkie pociągi w Polsce (PKP Intercity, Polregio, Koleje Mazowieckie, SKM, K
 | `trip_details` | Cały przebieg pociągu (po numerze: `3510`, `IC 3510`, nazwie: `Podhalanin` albo `ref`) z opóźnieniem na każdej stacji, odwołaniami i objazdami. |
 | `find_stops` / `nearby_stops` | Wyszukiwanie stacji (literówki i brak polskich znaków OK) oraz przystanków w pobliżu punktu. |
 | `rail_disruptions` | Utrudnienia na kolei z PKP PLK: zamknięcia torów, komunikacja zastępcza (ZKA), odwołania, awarie, ograniczenia prędkości – oficjalne komunikaty PKP PLK. Pociągi objęte utrudnieniem są oznaczone ⚠ także w `plan_journey`, `departures` i `trip_details`. Na publicznym serwerze włączone; lokalnie wymaga darmowego klucza PLK. |
+| `weather_warnings` | Ostrzeżenia IMGW (burze, wiatr, oblodzenie, upał, śnieg) i powodziowe dla powiatu danego miejsca; `plan_journey` sam dodaje ostrzeżenia dla startu i celu podróży. |
 | `data_sources` | Jakie dane są załadowane, do kiedy ważne, licencje i wymagane atrybucje. |
 
 **Pokrycie (domyślnie):** wszyscy przewoźnicy kolejowi koordynowani przez PKP PLK – PKP Intercity, Polregio, Koleje Mazowieckie, SKM Trójmiasto, SKM Warszawa, Koleje Śląskie, Dolnośląskie, Wielkopolskie, Małopolskie, ŁKA, Arriva, RegioJet, Leo Express – plus WKD, **PKS Poznań, PKS Kalisz i przewoźnicy kaliscy, Sindbad, Kombus, FlixBus/FlixTrain (połączenia z i do Polski)**. Komunikacja miejska ~25 miast (Warszawa, Kraków, Łódź, Poznań, Trójmiasto, GZM, Szczecin, Lublin, Białystok, Bydgoszcz, Legnica…) – na publicznym serwerze włączona, lokalnie opcjonalna. Przystanki miejskie wyszukasz z nazwą miasta: „Kraków Rondo Mogilskie”, „Warszawa Politechnika”. Pełna lista: [`feeds/feeds.json`](feeds/feeds.json).
@@ -221,6 +222,7 @@ Kod: [MIT](LICENSE). Dane: na licencjach źródeł – patrz `data_sources` i [`
 - `departures` – live departure board with platforms and delays
 - `trip_details` – full route of a train or bus with live delays and cancellations (trains; city transit in Kraków, Poznań, Gdańsk, Szczecin)
 - `rail_disruptions` – official PKP PLK disruptions: failures, track closures, replacement buses, cancellations (affected trains are flagged ⚠ in all answers)
+- `weather_warnings` – official IMGW-PIB weather and flood warnings for the county of a place (also added to journeys automatically)
 - `find_stops`, `nearby_stops`, `data_sources`
 
 **Try it in 30 seconds:** add `https://rozklad.compabase.com/mcp` as a custom connector in Claude or ChatGPT, or run `claude mcp add --transport http rozklad https://rozklad.compabase.com/mcp`. Locally: `npx -y rozklad-mcp` (stdio) in any MCP client, or `--http` for a Streamable HTTP endpoint. No API key – open GTFS data (PKP PLK via mkuran.pl, carriers' and cities' own feeds). Station names work with or without Polish diacritics; a bare town name means all of its stops.
