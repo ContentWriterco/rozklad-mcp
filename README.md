@@ -23,7 +23,9 @@ Agent:  Najszybciej: 8:22 IC „Zielonogórzanin” do Poznania Gł. (peron 3),
 
 **Pokrycie (domyślnie):** wszyscy przewoźnicy kolejowi koordynowani przez PKP PLK – PKP Intercity, Polregio, Koleje Mazowieckie, SKM Trójmiasto, SKM Warszawa, Koleje Śląskie, Dolnośląskie, Wielkopolskie, Małopolskie, ŁKA, Arriva, RegioJet, Leo Express – plus WKD, **PKS Poznań, PKS Kalisz i przewoźnicy kaliscy, Sindbad, Kombus**. Opcjonalnie komunikacja miejska ~20 miast (Warszawa, Kraków, Poznań, Trójmiasto, GZM, Szczecin, Lublin, Białystok…). Pełna lista: [`feeds/feeds.json`](feeds/feeds.json).
 
-Opóźnienia na żywo: pociągi (dane PKP PLK). Ceny biletów: niedostępne.
+Opóźnienia na żywo: pociągi (dane PKP PLK).
+
+**Ceny:** dla PKP Intercity `plan_journey` podaje cenę z oficjalnego cennika przewoźnika – TLK/IC według odległości po torze, EIC/EIP według par stacji. To **cena maksymalna** biletu normalnego (bez ulg i promocji); w sprzedaży często jest niższa (rabaty zależą od pociągu i dnia). Cennik jest informacją publiczną udostępnioną przez PKP Intercity, wykorzystywaną na podstawie art. 5 ustawy o otwartych danych. Nowa wersja cennika: `npm run build-fares -- <cennik.pdf> <url> <obowiązuje-od>`. Cen innych przewoźników jeszcze nie ma – PR mile widziane.
 
 ## Najszybciej: publiczny serwer (bez instalacji)
 

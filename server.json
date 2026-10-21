@@ -3,12 +3,12 @@
   "name": "io.github.ContentWriterco/rozklad-mcp",
   "description": "Polish train & bus timetables: journey planning with changes, departures, live delays. No API key.",
   "repository": { "url": "https://github.com/ContentWriterco/rozklad-mcp", "source": "github" },
-  "version": "0.1.0",
+  "version": "0.2.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "rozklad-mcp",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "transport": { "type": "stdio" },
       "environmentVariables": [
         { "name": "ROZKLAD_FEEDS", "description": "Feeds to load, e.g. trains,regional,city:Kraków", "isRequired": false }

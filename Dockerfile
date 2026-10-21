@@ -12,6 +12,7 @@ ENV NODE_ENV=production ROZKLAD_CACHE_DIR=/data PORT=3000 HOST=0.0.0.0
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY feeds ./feeds
+COPY data ./data
 COPY package.json README.md LICENSE ./
 RUN mkdir -p /data && chown node:node /data
 VOLUME /data

@@ -18,6 +18,8 @@ export interface FeedDef {
   license?: string;
   attribution?: string;
   realtime?: { type: "mkuran-json"; url: string; license?: string; attribution?: string };
+  /** Agencies whose trips need distance along the track (km-based fares), computed from shapes.txt. */
+  distanceAgencies?: string[];
 }
 
 export interface FeedMeta {

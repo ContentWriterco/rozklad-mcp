@@ -15,7 +15,10 @@
         "url": "https://mkuran.pl/gtfs/polish_trains/updates.json",
         "license": "CC BY 4.0 + PKP PLK re-use terms",
         "attribution": "Opóźnienia: PKP PLK S.A., Mikołaj Kuranowski"
-      }
+      },
+      "distanceAgencies": [
+        "IC"
+      ]
     },
     {
       "id": "wkd",

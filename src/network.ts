@@ -89,6 +89,8 @@ export class Network {
   tripNumber: string[] = [];
   tripName: string[] = [];
   tripFeed: number[] = [];
+  /** Distance along the track (km) for each stop of a trip; only for agencies with km-based fares. */
+  tripDistKm = new Map<number, Float32Array>();
 
   stStop = new GrowI32(1 << 16);
   stArr = new GrowI32(1 << 16);
@@ -298,10 +300,15 @@ export class Network {
     // trips
     const tripIdx = new Map<string, number>();
     const firstTrip = this.tripCount;
+    const distAgencies = new Set(def.distanceAgencies ?? []);
+    const tripShape = new Map<number, string>();
     parseCsv(must("trips.txt")).forEach((r, c) => {
       const ri = routeIdx.get(r[c("route_id")]);
       if (ri === undefined) return;
       const id = r[c("trip_id")];
+      if (distAgencies.size && distAgencies.has(this.routes[ri].agencyId) && c("shape_id") >= 0 && r[c("shape_id")]) {
+        tripShape.set(this.tripCount, r[c("shape_id")]);
+      }
       tripIdx.set(id, this.tripCount);
       this.tripId.push(id);
       this.tripRoute.push(ri);
@@ -360,12 +367,42 @@ export class Network {
       if (plat || track) tPlat.set(n, track ? `${plat || "?"}/${track}` : plat);
     };
     const stream = new CsvStream(onRow);
+    // shapes: keep only those needed for distance-based fares
+    const neededShapes = new Set(tripShape.values());
+    const shapePts = new Map<string, { seq: number[]; lat: number[]; lon: number[]; dist: number[] }>();
+    const shapeStream = new CsvStream((r, c) => {
+      const id = r[c("shape_id")];
+      if (!neededShapes.has(id)) return;
+      let sp = shapePts.get(id);
+      if (!sp) shapePts.set(id, (sp = { seq: [], lat: [], lon: [], dist: [] }));
+      sp.seq.push(+r[c("shape_pt_sequence")]);
+      sp.lat.push(+r[c("shape_pt_lat")]);
+      sp.lon.push(+r[c("shape_pt_lon")]);
+      const dcol = c("shape_dist_traveled");
+      sp.dist.push(dcol >= 0 && r[dcol] !== "" ? +r[dcol] : NaN);
+    });
     let foundStopTimes = false;
     const uz = new Unzip();
     uz.register(UnzipInflate);
     const dec = new TextDecoder("utf-8");
     uz.onfile = (file) => {
-      if (base(file.name) !== "stop_times.txt") return;
+      const fname = base(file.name);
+      if (fname === "shapes.txt" && neededShapes.size) {
+        const sdec = new TextDecoder("utf-8");
+        file.ondata = (err, data, final) => {
+          if (err) throw err;
+          const SLICE = 8 << 20;
+          for (let i = 0; i < data.length; i += SLICE) {
+            const end = Math.min(i + SLICE, data.length);
+            const last = final && end === data.length;
+            shapeStream.push(sdec.decode(data.subarray(i, end), { stream: !last }), last);
+          }
+          if (final && data.length === 0) shapeStream.push(sdec.decode(), true);
+        };
+        file.start();
+        return;
+      }
+      if (fname !== "stop_times.txt") return;
       foundStopTimes = true;
       file.ondata = (err, data, final) => {
         if (err) throw err;
@@ -430,6 +467,33 @@ export class Network {
       this.tripStart.a[ti] = start;
       this.tripLen.a[ti] = b - a;
       stopTimes += b - a;
+    }
+
+    // distance along the track for km-based fares (memoised per shape + stop pattern)
+    if (tripShape.size) {
+      const memo = new Map<string, Float32Array>();
+      const prepared = new Map<string, ReturnType<typeof prepareShape>>();
+      for (const [ti, shapeId] of tripShape) {
+        const len = this.tripLen.a[ti];
+        if (len < 2) continue;
+        const s0 = this.tripStart.a[ti];
+        const stopIdx: number[] = [];
+        for (let k = 0; k < len; k++) stopIdx.push(this.stStop.a[s0 + k]);
+        const key = `${shapeId}|${stopIdx.join(",")}`;
+        let dist = memo.get(key);
+        if (!dist) {
+          let sh = prepared.get(shapeId);
+          if (sh === undefined) {
+            const raw = shapePts.get(shapeId);
+            sh = raw ? prepareShape(raw) : null;
+            prepared.set(shapeId, sh);
+          }
+          if (!sh) continue;
+          dist = projectStops(sh, stopIdx.map((g) => [this.lat.a[g], this.lon.a[g]] as [number, number]));
+          memo.set(key, dist);
+        }
+        this.tripDistKm.set(ti, dist);
+      }
     }
 
     // number index (train numbers, names; bus line numbers are not indexed)
@@ -630,6 +694,60 @@ export class Network {
   stationOfStop(s: number): Station {
     return this.stations[this.stopStation[s]];
   }
+}
+
+type PreparedShape = { lat: Float64Array; lon: Float64Array; cum: Float64Array };
+
+/** Sort shape points and build cumulative distance (km); uses shape_dist_traveled when present. */
+function prepareShape(raw: { seq: number[]; lat: number[]; lon: number[]; dist: number[] }): PreparedShape | null {
+  const n = raw.seq.length;
+  if (n < 2) return null;
+  const order = Array.from({ length: n }, (_, i) => i).sort((a, b) => raw.seq[a] - raw.seq[b]);
+  const lat = new Float64Array(n);
+  const lon = new Float64Array(n);
+  const cum = new Float64Array(n);
+  const useGiven = order.every((i) => Number.isFinite(raw.dist[i]));
+  for (let k = 0; k < n; k++) {
+    const i = order[k];
+    lat[k] = raw.lat[i];
+    lon[k] = raw.lon[i];
+    if (useGiven) cum[k] = raw.dist[i];
+    else cum[k] = k === 0 ? 0 : cum[k - 1] + distM(lat[k - 1], lon[k - 1], lat[k], lon[k]) / 1000;
+  }
+  return { lat, lon, cum };
+}
+
+/** Project consecutive stops onto the shape (monotonic), returning km along the track for each stop. */
+function projectStops(sh: PreparedShape, stops: [number, number][]): Float32Array {
+  const out = new Float32Array(stops.length);
+  const n = sh.lat.length;
+  let from = 0;
+  for (let s = 0; s < stops.length; s++) {
+    const [la, lo] = stops[s];
+    let best = Infinity;
+    let bestKm = s === 0 ? 0 : out[s - 1];
+    let bestSeg = from;
+    for (let j = from; j < n - 1; j++) {
+      // project onto segment j..j+1 in a local equirectangular frame
+      const k = Math.cos((la * Math.PI) / 180);
+      const ax = sh.lon[j] * k, ay = sh.lat[j];
+      const bx = sh.lon[j + 1] * k, by = sh.lat[j + 1];
+      const px = lo * k, py = la;
+      const dx = bx - ax, dy = by - ay;
+      const L2 = dx * dx + dy * dy;
+      const t = L2 > 0 ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / L2)) : 0;
+      const qx = ax + t * dx, qy = ay + t * dy;
+      const d2 = (px - qx) * (px - qx) + (py - qy) * (py - qy);
+      if (d2 < best) {
+        best = d2;
+        bestSeg = j;
+        bestKm = sh.cum[j] + t * (sh.cum[j + 1] - sh.cum[j]);
+      }
+    }
+    out[s] = Math.max(bestKm, s === 0 ? 0 : out[s - 1]);
+    from = bestSeg;
+  }
+  return out;
 }
 
 /** "HH:MM:SS" -> seconds without allocations; -1 if empty. */

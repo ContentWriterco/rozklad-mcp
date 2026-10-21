@@ -6,6 +6,7 @@ import { DayConnections, Router, journeyKey, type Endpoint, type Journey, type R
 import { MkuranLive, type LiveTrip } from "./realtime.js";
 import { matchScore, tokens, normalize } from "./text.js";
 import { distM } from "./geo.js";
+import { Fares, type FareQuote } from "./fares.js";
 import { duration, hhmm, nowLocal, parseDateInput, parseTimeInput, prettyDate, ymdFromDay } from "./time.js";
 
 const DAY = 86400;
@@ -41,6 +42,10 @@ function modeList(mask: number): string {
     .join("/");
 }
 
+function fmtPln(v: number): string {
+  return `${v.toFixed(2).replace(".", ",").replace(",00", "")} zł`;
+}
+
 function fmtDelay(sec: number | undefined): string {
   if (sec === undefined) return "";
   const m = Math.round(sec / 60);
@@ -53,6 +58,7 @@ export class Engine {
   private loading: Promise<Network> | null = null;
   private defs: FeedDef[] = [];
   private live = new Map<string, MkuranLive>();
+  fares = new Fares();
   private dayCache = new Map<string, DayConnections>();
   private router: Router | null = null;
   private refreshTimer: NodeJS.Timeout | null = null;
@@ -490,6 +496,7 @@ export class Engine {
     if (useLive) await this.refreshLive([day]);
     const feedsUsed = new Set<number>();
     let usedLive = false;
+    let priceSource: FareQuote | null = null;
     const lines: string[] = [...header, "Times local (Europe/Warsaw); (+1) = next day.", ""];
     list.forEach((j, idx) => {
       const rides = j.legs.filter((l): l is RideLeg => l.kind === "ride");
@@ -532,13 +539,38 @@ export class Engine {
           `   ${net.tripLabel(trip)} (${route.agency}) → ${this.destinationOf(trip)}`,
           `     ${hhmm(leg.dep)} ${this.stopLabel(net.stStop.a[leg.boardSt])}${this.platform(leg.boardSt)} → ${hhmm(leg.arr)} ${this.stopLabel(net.stStop.a[leg.alightSt])}${this.platform(leg.alightSt)}${liveTxt}`,
           ...(also ? [`     ${also}`] : []),
-          `     ref: ${this.tripRef(trip, serviceDay)}`,
         );
+        const q = this.priceForRide(trip, leg.boardSt, leg.alightSt);
+        if (q) {
+          priceSource = q;
+          lines.push(`     price list (max): ${fmtPln(q.class2)} 2nd class / ${fmtPln(q.class1)} 1st class${q.basis.endsWith("km") ? ` · ${q.basis}` : ""} · often cheaper in sale`);
+        }
+        lines.push(`     ref: ${this.tripRef(trip, serviceDay)}`);
       }
       if (lastWalk > 0) lines.push(`   walk ${duration(lastWalk)} to destination`);
     });
-    lines.push("", "Tickets are not sold here - check the carrier. Use trip_details with a ref for all stops.", this.sourcesFooter(feedsUsed, usedLive));
+    lines.push("", "Tickets are not sold here - check the carrier. Use trip_details with a ref for all stops.");
+    if (priceSource) {
+      const ps = priceSource as FareQuote;
+      lines.push(
+        `Prices: ${ps.carrier} published price list valid from ${ps.validFrom} - maximum base price of a full-fare single ticket per train, before discounts and promotions; the price in sale is often lower. Source: ${ps.source}`,
+      );
+    }
+    lines.push(this.sourcesFooter(feedsUsed, usedLive));
     return lines.join("\n");
+  }
+
+  /** Price-list quote for one ride (currently PKP Intercity), or null. */
+  priceForRide(trip: number, boardSt: number, alightSt: number): FareQuote | null {
+    const net = this.net!;
+    if (!this.fares.loaded) return null;
+    const route = net.tripRouteOf(trip);
+    const s0 = net.tripStart.a[trip];
+    const dist = net.tripDistKm.get(trip);
+    const km = dist ? dist[alightSt - s0] - dist[boardSt - s0] : null;
+    const names: string[] = [];
+    for (let g = boardSt; g <= alightSt; g++) names.push(net.stopName[net.stStop.a[g]]);
+    return this.fares.quote(route.agencyId, route.shortName, km, names);
   }
 
   async departures(p: {

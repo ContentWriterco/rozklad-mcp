@@ -57,6 +57,26 @@ for (const f of reg.feeds) {
   rows.push(`| ${f.id} | ${f.group} | ${status} | ${info} |`);
   console.log(`${status.padEnd(4)} ${f.id.padEnd(18)} ${info}`);
 }
+// price lists referenced by data/fares/*.json: fail only when the document is gone (404/410);
+// carriers' sites may block automated requests, which we report but do not try to get around.
+try {
+  const fares = JSON.parse(readFileSync(new URL("../data/fares/pkpic.json", import.meta.url), "utf8"));
+  let status = "error";
+  try {
+    status = String((await get(fares.source, 60000)).status);
+  } catch (e) {
+    status = e.cause?.code || e.message;
+  }
+  const gone = status === "404" || status === "410";
+  const ok = status === "200";
+  if (gone) failed++;
+  const label = ok ? "OK" : gone ? "FAIL" : "SKIP";
+  const info = ok ? "price list reachable" : gone ? "price list removed - new version? rebuild data/fares/pkpic.json" : `not checked (${status})`;
+  rows.push(`| fares:pkpic | fares | ${label} | ${info} |`);
+  console.log(`${label.padEnd(4)} fares:pkpic        ${info}`);
+} catch (e) {
+  console.log(`SKIP fares:pkpic        ${e.message}`);
+}
 const md = ["| feed | group | status | info |", "|---|---|---|---|", ...rows].join("\n");
 if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Feed check\n\n${md}\n`);
 console.log(`\n${rows.length - failed}/${rows.length} feeds OK`);

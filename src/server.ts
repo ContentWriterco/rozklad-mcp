@@ -30,7 +30,7 @@ async function run(fn: () => Promise<string>): Promise<Text> {
 
 export const INSTRUCTIONS = `Polish public transport timetables (open data): all trains in Poland (PKP Intercity, Polregio, Koleje Mazowieckie, SKM, Koleje Śląskie/Dolnośląskie/Wielkopolskie/Małopolskie, ŁKA, Arriva, RegioJet, Leo Express, WKD), PKS / regional buses where carriers publish data, and optionally city transit.
 Typical flow: plan_journey(from, to, date, time) answers most questions directly - station and town names are matched fuzzily (with or without Polish letters). Use departures for "what leaves X now", trip_details for a specific train (number like 3510 or a ref) incl. live delays, find_stops/nearby_stops when a place is unclear (you can pass "lat,lon" as from/to).
-Times are local Europe/Warsaw. Live delays cover trains only. Ticket prices are not available. Mention that data comes from the listed sources when relevant.`;
+Times are local Europe/Warsaw. Live delays cover trains only. For PKP Intercity trains plan_journey shows the published price-list price: it is the MAXIMUM full-fare price, the actual price in sale is often lower (discounts, promotions) - say so when quoting it. Other carriers' prices are not available yet. Mention that data comes from the listed sources when relevant.`;
 
 export function createServer(engine: Engine): McpServer {
   const server = new McpServer({ name: "rozklad-mcp", version: VERSION }, { instructions: INSTRUCTIONS });
