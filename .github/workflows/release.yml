@@ -1,0 +1,41 @@
+name: Release
+# Publishes to the official MCP Registry (and npm, once trusted publishing is set up on npmjs.com).
+# Run manually (Actions -> Release -> Run workflow) or push a tag like v0.3.1.
+on:
+  workflow_dispatch:
+    inputs:
+      npm:
+        description: "Also publish to npm (needs npm trusted publisher for this workflow)"
+        type: boolean
+        default: false
+  push:
+    tags: ["v*"]
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  npm:
+    if: github.event_name == 'push' || inputs.npm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - run: npm install -g npm@latest
+      - run: npm ci
+      - name: Publish (skipped if this version is already on npm)
+        run: |
+          v=$(node -p "require('./package.json').version")
+          if npm view "rozklad-mcp@$v" version >/dev/null 2>&1; then echo "rozklad-mcp@$v already on npm"; else npm publish --provenance --access public; fi
+  mcp-registry:
+    needs: [npm]
+    if: always() && (needs.npm.result == 'success' || needs.npm.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install mcp-publisher
+        run: curl -sL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
+      - run: ./mcp-publisher login github-oidc
+      - run: ./mcp-publisher publish
