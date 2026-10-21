@@ -1,15 +1,39 @@
-# rozkład-mcp 🚆🚌
+<h1 align="center">rozkład-mcp 🚆🚌</h1>
 
-**Polskie rozkłady jazdy dla Twojego agenta AI.** Serwer [MCP](https://modelcontextprotocol.io) z rozkładami wszystkich pociągów w Polsce, autobusów PKS i FlixBusa oraz komunikacji miejskiej ~25 miast – z wyszukiwaniem połączeń z przesiadkami, tablicą odjazdów, opóźnieniami na żywo i cenami z cenników przewoźników.
+<p align="center">
+  <b>Rozkład jazdy PKP, PKS i komunikacji miejskiej dla Twojego asystenta AI.</b><br>
+  Serwer <a href="https://modelcontextprotocol.io">MCP</a>: wyszukiwarka połączeń z przesiadkami, odjazdy, opóźnienia na żywo i ceny biletów – w Claude, ChatGPT, Cursorze, VS Code i każdym kliencie MCP.
+</p>
 
-Działa z Claude, ChatGPT, Cursorem, VS Code, Codexem i każdym klientem MCP. **Bez klucza API, bez rejestracji, za darmo** – tylko otwarte dane.
+<p align="center">
+  <a href="https://www.npmjs.com/package/rozklad-mcp"><img alt="npm" src="https://img.shields.io/npm/v/rozklad-mcp?color=cb3837&label=npm"></a>
+  <a href="https://registry.modelcontextprotocol.io/v0/servers?search=rozklad-mcp"><img alt="MCP Registry" src="https://img.shields.io/badge/MCP%20Registry-io.github.ContentWriterco%2Frozklad--mcp-8250df"></a>
+  <a href="https://github.com/ContentWriterco/rozklad-mcp/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/ContentWriterco/rozklad-mcp/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="LICENSE"><img alt="Licencja MIT" src="https://img.shields.io/badge/licencja-MIT-blue"></a>
+  <img alt="Bez klucza API" src="https://img.shields.io/badge/klucz%20API-niepotrzebny-2ea44f">
+</p>
 
-```
-Ty:     Jak dostanę się jutro rano ze Zbąszynia do Kórnika?
-Agent:  Najszybciej: 8:22 IC „Zielonogórzanin” do Poznania Gł. (peron 3),
-        4 min pieszo na dworzec autobusowy, 9:15 PKS Poznań linia 212 → Kórnik 9:46.
-        Alternatywa bez autobusu: 7:30 KW → Zbąszynek → EIC → Poznań → PKM4, Kórnik 9:09.
-```
+<p align="center">
+  <img src="docs/demo-pl.svg" width="860" alt="Animacja: użytkownik pyta asystenta AI, jak dojechać ze Zbąszynia do Kórnika; asystent korzysta z rozklad-mcp i podaje pociąg IC, przejście na dworzec autobusowy i autobus PKS z godzinami i ceną">
+</p>
+
+<p align="center">
+  <a href="#najszybciej-publiczny-serwer-bez-instalacji"><b>Podłącz w 30 sekund</b></a> ·
+  <a href="#przykładowe-pytania">Przykładowe pytania</a> ·
+  <a href="#instalacja-lokalna">Instalacja lokalna</a> ·
+  <a href="#english">English</a>
+</p>
+
+Wszystkie pociągi w Polsce (PKP Intercity, Polregio, Koleje Mazowieckie, SKM, Koleje Śląskie, Dolnośląskie, Wielkopolskie, Małopolskie, ŁKA, Arriva…), autobusy PKS, FlixBus i komunikacja miejska ~25 miast w jednej wyszukiwarce połączeń. **Bez klucza API, bez rejestracji, za darmo** – tylko otwarte dane przewoźników i zarządców.
+
+### Przykładowe pytania
+
+- „Jak dostanę się jutro na 9:00 z Wrocławia do Zakopanego?”
+- „Czym najszybciej z Gdyni Orłowo na Politechnikę Gdańską?”
+- „Ile kosztuje IC z Poznania do Warszawy w piątek po 16:00?”
+- „Co odjeżdża teraz z przystanku Kraków Rondo Mogilskie?”
+- „Którędy jedzie Podhalanin i ile ma opóźnienia?”
+- „Mam pociąg o 18:36 z Poznania Głównego – o której autobus z Niepruszewa, żeby zdążyć?”
 
 ## Co potrafi
 
@@ -189,4 +213,18 @@ Kod: [MIT](LICENSE). Dane: na licencjach źródeł – patrz `data_sources` i [`
 
 ## English
 
-**rozklad-mcp** is an MCP server that gives AI agents Polish public transport timetables: every train in Poland (all carriers dispatched by PKP PLK), PKS/regional buses that publish open data, FlixBus/FlixTrain services to and from Poland, and urban transit in ~25 cities. Tools: `plan_journey` (multi-criteria connection scan with train↔bus transfers, depart-after / arrive-by, coordinates as endpoints, published price-list fares of PKP Intercity and regional rail carriers), `departures`, `trip_details` (live delays & cancellations for trains and for Kraków, Poznań, Gdańsk, Szczecin city transit), `rail_disruptions` (PKP PLK closures and replacement buses, needs a PLK API key on the server), `find_stops`, `nearby_stops`, `data_sources`. Public endpoint: `https://rozklad.compabase.com/mcp` (anonymous aggregated usage counters only, see `/stats`). No API key: it uses open GTFS data (PKP PLK via mkuran.pl, carriers' own feeds). Install with `npx -y rozklad-mcp` in any MCP client, or run `--http` for a remote Streamable HTTP endpoint. Station names work with or without Polish diacritics; a bare town name means all of its stops. Contributions of new feeds are very welcome – see [CONTRIBUTING.md](CONTRIBUTING.md).
+<p align="center"><img src="docs/demo-en.svg" width="860" alt="Animation: a user asks an AI assistant how to get from Zbąszyń to Kórnik; the assistant uses rozklad-mcp and answers with an IC train, a short walk and a PKS bus, with times and price"></p>
+
+**rozklad-mcp** is an MCP server that gives AI assistants and agents **Polish public transport timetables**: every train in Poland (all carriers dispatched by PKP PLK – PKP Intercity, Polregio, Koleje Mazowieckie, SKM, regional railways), PKS/regional buses that publish open data, FlixBus/FlixTrain services to and from Poland, and urban transit in ~25 cities (Warsaw, Kraków, Łódź, Poznań, Gdańsk/Gdynia, Silesia GZM, Szczecin, Lublin, Białystok…).
+
+- `plan_journey` – multi-criteria connection scan with train ↔ bus ↔ tram transfers, depart-after / arrive-by, coordinates as endpoints, published price-list fares of PKP Intercity and regional rail carriers
+- `departures` – live departure board with platforms and delays
+- `trip_details` – full route of a train or bus with live delays and cancellations (trains; city transit in Kraków, Poznań, Gdańsk, Szczecin)
+- `rail_disruptions` – PKP PLK track closures and replacement buses
+- `find_stops`, `nearby_stops`, `data_sources`
+
+**Try it in 30 seconds:** add `https://rozklad.compabase.com/mcp` as a custom connector in Claude or ChatGPT, or run `claude mcp add --transport http rozklad https://rozklad.compabase.com/mcp`. Locally: `npx -y rozklad-mcp` (stdio) in any MCP client, or `--http` for a Streamable HTTP endpoint. No API key – open GTFS data (PKP PLK via mkuran.pl, carriers' and cities' own feeds). Station names work with or without Polish diacritics; a bare town name means all of its stops.
+
+Example prompts: *"How do I get from Wrocław to Zakopane by 9 am tomorrow?"*, *"What leaves Kraków Rondo Mogilskie now?"*, *"How much is the IC from Poznań to Warsaw on Friday evening?"*
+
+Contributions of new feeds are very welcome – see [CONTRIBUTING.md](CONTRIBUTING.md).
