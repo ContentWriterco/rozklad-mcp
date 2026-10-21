@@ -1,18 +1,33 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
   "name": "io.github.ContentWriterco/rozklad-mcp",
-  "description": "Polish train, bus & city transit timetables: journey planning with changes, departures, live delays, fares. No API key.",
-  "repository": { "url": "https://github.com/ContentWriterco/rozklad-mcp", "source": "github" },
+  "description": "Polish train, bus & city transit timetables: journeys, departures, live delays, fares",
+  "repository": {
+    "url": "https://github.com/ContentWriterco/rozklad-mcp",
+    "source": "github"
+  },
   "version": "0.3.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "rozklad-mcp",
       "version": "0.3.0",
-      "transport": { "type": "stdio" },
+      "transport": {
+        "type": "stdio"
+      },
       "environmentVariables": [
-        { "name": "ROZKLAD_FEEDS", "description": "Feeds to load, e.g. trains,regional,city:Kraków", "isRequired": false }
+        {
+          "name": "ROZKLAD_FEEDS",
+          "description": "Feeds to load, e.g. trains,regional,city:Kraków",
+          "isRequired": false
+        }
       ]
+    }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://rozklad.compabase.com/mcp"
     }
   ]
 }
