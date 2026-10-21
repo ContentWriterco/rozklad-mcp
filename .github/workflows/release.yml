@@ -38,4 +38,10 @@ jobs:
       - name: Install mcp-publisher
         run: curl -sL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
       - run: ./mcp-publisher login github-oidc
-      - run: ./mcp-publisher publish
+      - name: Publish (retries while a fresh npm release propagates)
+        run: |
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            ./mcp-publisher publish && exit 0
+            echo "retry $i in 30 s"; sleep 30
+          done
+          exit 1
