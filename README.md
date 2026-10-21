@@ -25,7 +25,7 @@ Agent:  Najszybciej: 8:22 IC „Zielonogórzanin” do Poznania Gł. (peron 3),
 
 Opóźnienia na żywo: pociągi (dane PKP PLK).
 
-**Ceny:** dla PKP Intercity `plan_journey` podaje cenę z oficjalnego cennika przewoźnika – TLK/IC według odległości po torze, EIC/EIP według par stacji. To **cena maksymalna** biletu normalnego (bez ulg i promocji); w sprzedaży często jest niższa (rabaty zależą od pociągu i dnia). Cennik jest informacją publiczną udostępnioną przez PKP Intercity, wykorzystywaną na podstawie art. 5 ustawy o otwartych danych. Nowa wersja cennika: `npm run build-fares -- <cennik.pdf> <url> <obowiązuje-od>`. Cen innych przewoźników jeszcze nie ma – PR mile widziane.
+**Ceny:** dla PKP Intercity `plan_journey` podaje cenę z oficjalnego cennika przewoźnika – TLK/IC według odległości po torze (gdy odległość wypada blisko granicy przedziału cennika, podajemy widełki, np. 68–69 zł – przebieg toru w danych różni się od odległości taryfowej o kilka km), EIC/EIP według par stacji. To **cena maksymalna** biletu normalnego (bez ulg i promocji); w sprzedaży często jest niższa (rabaty zależą od pociągu i dnia). Cennik jest informacją publiczną udostępnioną przez PKP Intercity, wykorzystywaną na podstawie art. 5 ustawy o otwartych danych. Nowa wersja cennika: `npm run build-fares -- <cennik.pdf> <url> <obowiązuje-od>`. Cen innych przewoźników jeszcze nie ma – PR mile widziane.
 
 ## Najszybciej: publiczny serwer (bez instalacji)
 

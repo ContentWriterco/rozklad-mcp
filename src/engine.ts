@@ -46,6 +46,11 @@ function fmtPln(v: number): string {
   return `${v.toFixed(2).replace(".", ",").replace(",00", "")} zł`;
 }
 
+function fmtRange(min: number, max: number | undefined): string {
+  if (max === undefined || max === min) return fmtPln(min);
+  return `${fmtPln(min).replace(" zł", "")}–${fmtPln(max)}`;
+}
+
 function fmtDelay(sec: number | undefined): string {
   if (sec === undefined) return "";
   const m = Math.round(sec / 60);
@@ -543,7 +548,7 @@ export class Engine {
         const q = this.priceForRide(trip, leg.boardSt, leg.alightSt);
         if (q) {
           priceSource = q;
-          lines.push(`     price list (max): ${fmtPln(q.class2)} 2nd class / ${fmtPln(q.class1)} 1st class${q.basis.endsWith("km") ? ` · ${q.basis}` : ""} · often cheaper in sale`);
+          lines.push(`     price list (max): ${fmtRange(q.class2, q.class2Max)} 2nd class / ${fmtRange(q.class1, q.class1Max)} 1st class${q.basis.endsWith("km") ? ` · ${q.basis}` : ""} · often cheaper in sale`);
         }
         lines.push(`     ref: ${this.tripRef(trip, serviceDay)}`);
       }

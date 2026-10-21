@@ -23,6 +23,9 @@ export interface FareQuote {
   category: string;
   class2: number;
   class1: number;
+  /** Set when the distance is close to a band boundary (track geometry differs by a few km between trains). */
+  class2Max?: number;
+  class1Max?: number;
   basis: string;
   carrier: string;
   validFrom: string;
@@ -80,9 +83,18 @@ export class Fares {
     if (tb.t.distance_bands.categories.includes(cat)) {
       if (km == null || !Number.isFinite(km) || km <= 0) return null;
       const k = Math.max(1, Math.round(km));
-      const row = tb.t.distance_bands.rows.find(([from, to]) => k >= from && k <= to);
+      const band = (x: number) => tb.t.distance_bands.rows.find(([from, to]) => x >= from && x <= to);
+      const row = band(k);
       if (!row) return null;
-      return { category: cat, class2: row[2], class1: row[3], basis: `${k} km`, ...meta };
+      // distance along mapped track deviates from the tariff distance by up to a few km
+      const lo = band(Math.max(1, k - KM_TOLERANCE)) ?? row;
+      const hi = band(k + KM_TOLERANCE) ?? row;
+      const q: FareQuote = { category: cat, class2: lo[2], class1: lo[3], basis: `~${k} km`, ...meta };
+      if (hi[2] !== lo[2] || hi[3] !== lo[3]) {
+        q.class2Max = hi[2];
+        q.class1Max = hi[3];
+      }
+      return q;
     }
     const idx = tb.pairs.get(cat);
     if (!idx || stationNames.length < 2) return null;
@@ -102,6 +114,9 @@ export class Fares {
     return { category: cat, class2: pick.class2, class1: pick.class1, basis: "station pair", ...meta };
   }
 }
+
+/** Tolerance (km) between distance along the mapped track and the official tariff distance. */
+export const KM_TOLERANCE = 4;
 
 function pairKey(a: string, b: string): string {
   return a < b ? `${a}|${b}` : `${b}|${a}`;

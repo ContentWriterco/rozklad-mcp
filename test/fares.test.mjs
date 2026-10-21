@@ -25,9 +25,14 @@ writeFileSync(
 const f = new Fares([file]);
 
 test("fares: km bands for TLK/IC (rounded km)", () => {
-  assert.equal(f.quote("IC", "IC", 100.4, [])?.class2, 33);
-  assert.equal(f.quote("IC", "TLK", 303.03, [])?.class1, 90);
-  assert.equal(f.quote("IC", "IC", 303.03, [])?.basis, "303 km");
+  assert.equal(f.quote("IC", "IC", 70, [])?.class2, 33);
+  assert.equal(f.quote("IC", "IC", 70, [])?.class2Max, undefined);
+  assert.equal(f.quote("IC", "TLK", 200, [])?.class1, 90);
+  assert.equal(f.quote("IC", "IC", 200.2, [])?.basis, "~200 km");
+  // near a band boundary (100/101 km): range
+  const q = f.quote("IC", "IC", 99.6, []);
+  assert.equal(q?.class2, 33);
+  assert.equal(q?.class2Max, 69);
   assert.equal(f.quote("IC", "IC", null, []), null);
   assert.equal(f.quote("KM", "IC", 50, []), null);
 });
