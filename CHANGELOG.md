@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.4 – 2026-10-21
+
+- Utrudnienia PKP PLK: nazwy typów, gdy API podaje tylko kod (np. „utr_55”). Klucz PLK aktywny na publicznym serwerze.
+
 ## 0.3.3 – 2026-10-21
 
 - `/.well-known/security.txt` z adresem operatora (`ROZKLAD_CONTACT`), m.in. do weryfikacji w katalogach MCP.

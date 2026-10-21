@@ -26,6 +26,13 @@ test("disruptions: index PLK API response by train run and station", () => {
   assert.equal(d.forTrip("PLK_KML_2026_123456789", "2026-10-22").length, 0);
   assert.equal(d.search("Bieżanów").length, 1);
   assert.equal(d.search("Gdynia").length, 0);
+  d.load({ disruptionTypes: { utr_55: "Odwołanie pociągu" }, stations: {}, disruptions: [{ disruptionId: 2, message: "utr_55", affectedRoutes: [{ orderId: 1, operatingDate: "2026-10-21" }] }] });
+  assert.equal(shortMessage(d.search()[0]), "Odwołanie pociągu");
+  d.load({
+    disruptionTypes: { utr_32: "Zastępcza komunikacja autobusowa" },
+    stations: { 1: "Kraków Główny", 2: "Wieliczka Rynek-Kopalnia" },
+    disruptions: [{ disruptionId: 7, disruptionTypeCode: "utr_32", startStationId: 1, endStationId: 2, message: "Na odcinku   Kraków Główny - Wieliczka kursuje ZKA." }],
+  });
   assert.match(shortMessage(d.search()[0]), /^Zastępcza komunikacja autobusowa \(Kraków Główny – Wieliczka Rynek-Kopalnia\): Na odcinku Kraków/);
 });
 

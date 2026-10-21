@@ -87,10 +87,17 @@ export class PlkDisruptions {
     const list: Disruption[] = [];
     const byRun = new Map<string, Disruption[]>();
     for (const x of d.disruptions ?? []) {
+      // the API sometimes sends only a type code as the message ("utr_55")
+      let message = (x.message ?? "").replace(/\s+/g, " ").trim();
+      let code = x.disruptionTypeCode;
+      if (/^utr_\d+$/.test(message)) {
+        code = code ?? message;
+        message = "";
+      }
       const dis: Disruption = {
         id: x.disruptionId,
-        type: types[x.disruptionTypeCode ?? ""] ?? x.disruptionTypeCode ?? "utrudnienie",
-        message: (x.message ?? "").replace(/\s+/g, " ").trim(),
+        type: (code && types[code]) || "Utrudnienie",
+        message,
         from: name(x.startStationId),
         to: name(x.endStationId),
         runs: new Set(),
@@ -135,6 +142,7 @@ export class PlkDisruptions {
 
 export function shortMessage(d: Disruption, max = 220): string {
   const where = d.from && d.to && d.from !== d.to ? ` (${d.from} – ${d.to})` : d.from ? ` (${d.from})` : "";
+  if (!d.message) return `${d.type}${where}`;
   const msg = d.message.length > max ? d.message.slice(0, max - 1) + "…" : d.message;
   return `${d.type}${where}: ${msg}`;
 }
