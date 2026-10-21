@@ -51,3 +51,10 @@ test("time: date and time inputs", () => {
   assert.equal(hhmm(25 * 3600 + 60), "01:01(+1)");
   assert.equal(ymdFromDay(today), "2026-10-20");
 });
+
+test("slug: Koleo-style station slugs", async () => {
+  const { slug } = await import("../dist/engine.js");
+  assert.equal(slug("Poznań Główny"), "poznan-glowny");
+  assert.equal(slug("Bielsko-Biała Główna"), "bielsko-biala-glowna");
+  assert.equal(slug("Łódź Fabryczna"), "lodz-fabryczna");
+});

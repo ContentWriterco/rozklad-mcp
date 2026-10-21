@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1 – 2026-10-21
+
+- `plan_journey`: link „exact price & tickets” do Koleo dla części kolejowej każdego połączenia (aktualna cena z promocjami, zakup biletu). Bez pobierania cen ze sklepów.
+- README: animowane demo (PL/EN), przykładowe pytania, odznaki.
+
 ## 0.3.0 – 2026-10-21
 
 - **Komunikacja miejska na publicznym serwerze**: mniejsze zużycie pamięci (bufory bez zapasu, współdzielone napisy, budżet pamięci na tablice dni, krótsze okno nocne dla autobusów/tramwajów) – wszystkie feedy mieszczą się w ~1,2 GB. Przystanki miejskie z nazwą miasta („Kraków Rondo Mogilskie”); równie dobre trafienia w różnych miastach („Politechnika”) są zgłaszane jako niejednoznaczne.

@@ -43,6 +43,17 @@ function modeList(mask: number): string {
     .join("/");
 }
 
+/** Koleo-style URL slug: "Poznań Główny" -> "poznan-glowny". */
+export function slug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/ł/g, "l")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 function fmtPln(v: number): string {
   return `${v.toFixed(2).replace(".", ",").replace(",00", "")} zł`;
 }
@@ -632,6 +643,8 @@ export class Engine {
         lines.push(`     ref: ${this.tripRef(trip, serviceDay)}`);
       }
       if (lastWalk > 0) lines.push(`   walk ${duration(lastWalk)} to destination`);
+      const link = this.ticketLink(rides, day);
+      if (link) lines.push(`   exact price & tickets (trains): ${link}`);
     });
     lines.push("", "Tickets are not sold here - check the carrier. Use trip_details with a ref for all stops.");
     if (priceSources.size) {
@@ -643,6 +656,26 @@ export class Engine {
     }
     lines.push(this.sourcesFooter(feedsUsed, usedLive, usedDisruptions));
     return lines.join("\n");
+  }
+
+  /**
+   * Deep link to the Koleo journey planner (sells tickets of all Polish rail carriers) for the
+   * rail part of a journey: shows the exact current price incl. promotions. No scraping - the
+   * user (or an agent with a browser) opens it.
+   */
+  private ticketLink(rides: RideLeg[], day: number): string | null {
+    const net = this.net!;
+    const rail = rides.filter((r) => net.feeds[net.tripFeed[r.trip]].def.id === "polish-trains");
+    if (!rail.length) return null;
+    const a = rail[0];
+    const b = rail[rail.length - 1];
+    const from = slug(net.stationOfStop(net.stStop.a[a.boardSt]).name);
+    const to = slug(net.stationOfStop(net.stStop.a[b.alightSt]).name);
+    if (!from || !to || from === to) return null;
+    const d = day + Math.floor(a.dep / 86400);
+    const [y, m, dd] = ymdFromDay(d).split("-");
+    const hm = hhmm(a.dep - Math.floor(a.dep / 86400) * 86400);
+    return `https://koleo.pl/rozklad-pkp/${from}/${to}/${dd}-${m}-${y}_${hm}`;
   }
 
   /** Price-list quote for one ride (PKP Intercity, regional carriers with km tables), or null. */
