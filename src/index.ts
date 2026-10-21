@@ -32,6 +32,7 @@ Environment:
   ROZKLAD_LOG=debug    verbose logs (stderr)
   ROZKLAD_RATE_LIMIT   HTTP mode: max requests per minute per IP (default off)
   ROZKLAD_STATS        HTTP mode: 1 = anonymous daily usage counters, served at /stats
+  ROZKLAD_CONTACT      HTTP mode: operator e-mail for /.well-known/security.txt
   ROZKLAD_PLK_API_KEY  key for PKP PLK Otwarte Dane Kolejowe (disruptions, replacement buses)
   ROZKLAD_CONN_CACHE_MB  memory budget for per-day connection tables (default 400)
   ROZKLAD_TRUST_PROXY=1  HTTP mode: take client IP from X-Forwarded-For
@@ -119,6 +120,13 @@ async function startHttp(engine: Engine, port: number, host: string) {
           res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
           res.end(LANDING);
         }
+        return;
+      }
+      if (url.pathname === "/.well-known/security.txt" && process.env.ROZKLAD_CONTACT) {
+        // RFC 9116; also lets MCP directories verify who operates this instance
+        const exp = new Date(Date.now() + 180 * 86400_000).toISOString();
+        res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
+        res.end(`Contact: mailto:${process.env.ROZKLAD_CONTACT}\nExpires: ${exp}\nPreferred-Languages: pl, en\nCanonical: ${(process.env.ROZKLAD_PUBLIC_URL ?? "").replace(/\/$/, "")}/.well-known/security.txt\n`);
         return;
       }
       if (url.pathname === "/stats" && usage.enabled) {

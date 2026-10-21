@@ -1,6 +1,6 @@
 {
   "name": "rozklad-mcp",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "MCP server with Polish public transport timetables: all trains (PKP Intercity, Polregio, Koleje Mazowieckie, ...), PKS buses and city transit. Journey planning with changes, departures and live delays for AI agents. Price-list fares for PKP Intercity. No API key needed.",
   "type": "module",
   "bin": {

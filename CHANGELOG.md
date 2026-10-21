@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.3 – 2026-10-21
+
+- `/.well-known/security.txt` z adresem operatora (`ROZKLAD_CONTACT`), m.in. do weryfikacji w katalogach MCP.
+
 ## 0.3.2 – 2026-10-21
 
 - Strona główna serwera HTTP (`/` w przeglądarce): opis, adres MCP do skopiowania, instrukcje podłączenia, demo, dane strukturalne i podgląd linku (Open Graph). `ROZKLAD_PUBLIC_URL` ustawia adres publiczny.
