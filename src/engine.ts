@@ -258,9 +258,15 @@ export class Engine {
       chosen = exact;
     } else if (exact.length || city.length) {
       // "Kraków" -> all stops whose name starts with "Kraków ..." (plus an exact one if present)
-      chosen = [...exact, ...city]
-        .sort((a, b) => b.station.weight - a.station.weight)
-        .slice(0, role === "station" ? 1 : 60);
+      // whole town: every railway station first (a busy bus stop must not push out the main rail station),
+      // then the busiest other stops
+      const all = [...exact, ...city].sort((a, b) => b.station.weight - a.station.weight);
+      if (role === "station") chosen = all.slice(0, 1);
+      else {
+        const rail = all.filter((h) => h.station.modes & MODE.rail).slice(0, 40);
+        const other = all.filter((h) => !(h.station.modes & MODE.rail));
+        chosen = [...rail, ...other.slice(0, Math.max(30, 80 - rail.length))];
+      }
       if (role === "station" && !exact.length) {
         note = `"${input}" matches several stations; showing the busiest: ${chosen[0].station.name}. Others: ${city
           .slice(1, 8)

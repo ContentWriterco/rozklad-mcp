@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.1 – 2026-10-23
+
+- Poprawka: przy wyszukiwaniu „całego miasta” (np. „Warszawa”) główne dworce kolejowe mogły wypaść z listy przystanków, bo wybieraliśmy 60 najbardziej ruchliwych przystanków, a autobusowe przystanki przy dworcu wyprzedzały sam dworzec. Teraz najpierw bierzemy wszystkie stacje kolejowe miasta, potem najbardziej ruchliwe pozostałe przystanki (np. Warszawa → Niepruszewo od 18:00 znajduje już EIC o 18:00).
+
 ## 0.4.0 – 2026-10-21
 
 - Nowe narzędzie `weather_warnings`: ostrzeżenia meteorologiczne i powodziowe IMGW-PIB dla powiatu danego miejsca (powiat z usługi GUGiK ULDK) albo przegląd dla całej Polski.
